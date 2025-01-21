@@ -44,7 +44,8 @@
 #define EXT_SCAN_DURATION     0
 #define EXT_SCAN_PERIOD       0
 
-static char remote_device_name[ESP_BLE_ADV_DATA_LEN_MAX] = "ESP_EXTENDED_ADV";
+//static char remote_device_name[ESP_BLE_ADV_DATA_LEN_MAX] = "ESP_EXTENDED_ADV";
+static char remote_device_name[ESP_BLE_ADV_DATA_LEN_MAX] = "COOSPO H6";
 static SemaphoreHandle_t test_sem = NULL;
 
 static esp_ble_ext_scan_params_t ext_scan_params = {
@@ -69,6 +70,8 @@ bool periodic_sync = false;
 
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
+    //ESP_LOGI(LOG_TAG, "Event %d", event);
+
     switch (event) {
     case ESP_GAP_BLE_SET_EXT_SCAN_PARAMS_COMPLETE_EVT:
         xSemaphoreGive(test_sem);
@@ -102,16 +105,19 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
                                                                                       param->periodic_adv_sync_estab.period_adv_interval,
                                                                                       param->periodic_adv_sync_estab.adv_phy);
         break;
+  
     case ESP_GAP_BLE_EXT_ADV_REPORT_EVT: {
+        //ESP_LOGI(LOG_TAG, "Event ESP_GAP_BLE_EXT_ADV_REPORT_EVT %d", event);
         uint8_t *adv_name = NULL;
         uint8_t adv_name_len = 0;
-	    //adv_name = esp_ble_resolve_adv_data_by_type(param->ext_adv_report.params.adv_data,
-	    adv_name = esp_ble_resolve_adv_data(param->ext_adv_report.params.adv_data,
-                                            //param->ext_adv_report.params.adv_data_len,
+
+	    adv_name = esp_ble_resolve_adv_data_by_type(param->ext_adv_report.params.adv_data,
+                                            param->ext_adv_report.params.adv_data_len,
                                             ESP_BLE_AD_TYPE_NAME_CMPL,
                                             &adv_name_len);
-	    if ((adv_name != NULL) && (memcmp(adv_name, remote_device_name, adv_name_len) == 0) && !periodic_sync) {
-            // Note: If there are multiple devices with the same device name, the device may sync to an unintended one.
+ 	    if ((adv_name != NULL) && (memcmp(adv_name, remote_device_name, adv_name_len) == 0) && !periodic_sync) {
+            ESP_LOGI(LOG_TAG, "Event adv_name %d len %d", adv_name, adv_name_len);
+	        // Note: If there are multiple devices with the same device name, the device may sync to an unintended one.
             // It is recommended to change the default device name to ensure it is unique.
             periodic_sync = true;
 	        char adv_temp_name[30] = {'0'};
@@ -122,6 +128,15 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 	        memcpy(periodic_adv_sync_params.addr, param->ext_adv_report.params.addr, sizeof(esp_bd_addr_t));
             esp_ble_gap_periodic_adv_create_sync(&periodic_adv_sync_params);
 	    }
+
+        adv_name = esp_ble_resolve_adv_data_by_type(param->ext_adv_report.params.adv_data,
+                                            param->ext_adv_report.params.adv_data_len,
+                                            ESP_BLE_AD_TYPE_NAME_CMPL,
+                                             &adv_name_len);
+         if (adv_name != NULL ) {
+             ESP_LOGI(LOG_TAG, "Event adv_name %d len %d", adv_name, adv_name_len);
+	     }
+
     }
         break;
     case ESP_GAP_BLE_PERIODIC_ADV_REPORT_EVT:
@@ -140,6 +155,15 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 
 void app_main() {
 
+    static const char *TAG = "MAIN";
+    vTaskDelay(pdMS_TO_TICKS(4000));  // Задержка на 1000 миллисекунд
+    ESP_LOGI(TAG, "Программа запущена!");
+
+    for(int i=0; i<10; i++)
+    {
+        vTaskDelay(pdMS_TO_TICKS(250));  // Задержка на 1000 миллисекунд
+        ESP_LOGI(TAG, "%d", i);
+    }
 
     esp_err_t ret;
 
@@ -164,7 +188,7 @@ void app_main() {
         return;
     }
 
-    ret = esp_bt_controller_enable(ESP_BT_MODE_BLE);
+    ret = esp_bt_controller_enable(ESP_BT_MODE_BLE); // KOE ESP_BT_MODE_BLE ESP_BT_MODE_BTDM
     if (ret) {
         ESP_LOGE(LOG_TAG, "%s enable controller failed: %s", __func__, esp_err_to_name(ret));
         return;
@@ -193,7 +217,15 @@ void app_main() {
     FUNC_SEND_WAIT_SEM(esp_ble_gap_set_ext_scan_params(&ext_scan_params), test_sem);
     FUNC_SEND_WAIT_SEM(esp_ble_gap_start_ext_scan(EXT_SCAN_DURATION, EXT_SCAN_PERIOD), test_sem);
 
+    ESP_LOGI(TAG, "Перед return");
+    
+    //// app_main завершится, но задачи останутся активными
+    //vTaskDelete(NULL);  // Удалить текущую задачу (app_main)
+    //return;
 
-    return;
+     while (1) {
+        printf("Main loop running.\n");
+        vTaskDelay(pdMS_TO_TICKS(10000));
+    }
 
 }
