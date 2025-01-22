@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
+
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -99,7 +101,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         break;
     case ESP_GAP_BLE_PERIODIC_ADV_SYNC_ESTAB_EVT:
         ESP_LOGI(LOG_TAG, "Periodic advertising sync establish, status %d", param->periodic_adv_sync_estab.status);
-        ESP_LOGI(LOG_TAG, "address "ESP_BD_ADDR_STR"", ESP_BD_ADDR_HEX(param->periodic_adv_sync_estab.adv_addr));
+        ESP_LOGI(LOG_TAG, "address " ESP_BD_ADDR_STR "", ESP_BD_ADDR_HEX(param->periodic_adv_sync_estab.adv_addr));
         ESP_LOGI(LOG_TAG, "sync handle %d sid %d perioic adv interval %d adv phy %d", param->periodic_adv_sync_estab.sync_handle,
                                                                                       param->periodic_adv_sync_estab.sid,
                                                                                       param->periodic_adv_sync_estab.period_adv_interval,
@@ -116,7 +118,8 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
                                             ESP_BLE_AD_TYPE_NAME_CMPL,
                                             &adv_name_len);
  	    if ((adv_name != NULL) && (memcmp(adv_name, remote_device_name, adv_name_len) == 0) && !periodic_sync) {
-            ESP_LOGI(LOG_TAG, "Event adv_name %d len %d", adv_name, adv_name_len);
+            //ESP_LOGI(LOG_TAG, "Event adv_name %d len %d", adv_name, adv_name_len);
+            //ESP_LOGI(LOG_TAG, "Event adv_name %d len %hhu", adv_name, adv_name_len);
 	        // Note: If there are multiple devices with the same device name, the device may sync to an unintended one.
             // It is recommended to change the default device name to ensure it is unique.
             periodic_sync = true;
@@ -124,7 +127,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 	        memcpy(adv_temp_name, adv_name, adv_name_len);
 	        ESP_LOGI(LOG_TAG, "Create sync with the peer device %s", adv_temp_name);
             periodic_adv_sync_params.sid = param->ext_adv_report.params.sid;
-	        periodic_adv_sync_params.addr_type = param->ext_adv_report.params.addr_type;
+	        periodic_adv_sync_params.addr_type =(esp_ble_addr_type_t) (param->ext_adv_report.params.addr_type);
 	        memcpy(periodic_adv_sync_params.addr, param->ext_adv_report.params.addr, sizeof(esp_bd_addr_t));
             esp_ble_gap_periodic_adv_create_sync(&periodic_adv_sync_params);
 	    }
@@ -134,7 +137,10 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
                                             ESP_BLE_AD_TYPE_NAME_CMPL,
                                              &adv_name_len);
          if (adv_name != NULL ) {
-             ESP_LOGI(LOG_TAG, "Event adv_name %d len %d", adv_name, adv_name_len);
+             //ESP_LOGI(LOG_TAG, "Event adv_name %d len %hhu", adv_name, adv_name_len);
+             std::string str((char*)adv_name);
+             ESP_LOGI(LOG_TAG, "Event adv_name %s len %i", str.c_str(), str.length());
+            
 	     }
 
     }
@@ -153,7 +159,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 
 
 
-void app_main() {
+extern "C" void app_main() {
 
     static const char *TAG = "MAIN";
     vTaskDelay(pdMS_TO_TICKS(4000));  // Задержка на 1000 миллисекунд

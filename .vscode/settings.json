@@ -6,6 +6,9 @@
         "esp_gatt_defs.h": "c",
         "esp_bt_device.h": "c",
         "esp_bt_defs.h": "c",
-        "esp_gap_ble_api.h": "c"
+        "esp_gap_ble_api.h": "c",
+        "string.h": "c",
+        "strings.h": "c",
+        "string": "cpp"
     }
 }
