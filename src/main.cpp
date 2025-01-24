@@ -112,6 +112,16 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         //ESP_LOGI(LOG_TAG, "Event ESP_GAP_BLE_EXT_ADV_REPORT_EVT %d", event);
         uint8_t *adv_name = NULL;
         uint8_t adv_name_len = 0;
+        uint8_t *adv_name_s = NULL;
+        uint8_t adv_name_s_len = 0;
+
+           
+	    adv_name_s = esp_ble_resolve_adv_data_by_type(param->ext_adv_report.params.adv_data,
+                                            param->ext_adv_report.params.adv_data_len,
+                                            ESP_BLE_AD_TYPE_NAME_SHORT,
+                                            &adv_name_s_len);
+
+
 
 	    adv_name = esp_ble_resolve_adv_data_by_type(param->ext_adv_report.params.adv_data,
                                             param->ext_adv_report.params.adv_data_len,
@@ -137,12 +147,15 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
                                             ESP_BLE_AD_TYPE_NAME_CMPL,
                                              &adv_name_len);
          if (adv_name != NULL ) {
-             //ESP_LOGI(LOG_TAG, "Event adv_name %d len %hhu", adv_name, adv_name_len);
-             std::string str((char*)adv_name);
-             ESP_LOGI(LOG_TAG, "Event adv_name %s len %i", str.c_str(), str.length());
-            
+            std::string str((char*)adv_name);
+            str.resize(adv_name_len);
+            ESP_LOGI(LOG_TAG, "Event adv_name long %s len %i", str.c_str(), str.length());
 	     }
-
+         if (adv_name_s != NULL) {
+            std::string str((char*)adv_name_s);
+            str.resize(adv_name_s_len);
+            ESP_LOGI(LOG_TAG, "Event adv_name short %s len %i", str.c_str(), str.length());
+        }
     }
         break;
     case ESP_GAP_BLE_PERIODIC_ADV_REPORT_EVT:
@@ -185,6 +198,7 @@ extern "C" void app_main() {
     memcpy(remote_device_name, esp_bluedroid_get_example_name(), sizeof(remote_device_name));
     #endif
 
+    // Disable Classic Bluetooth
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
@@ -193,7 +207,7 @@ extern "C" void app_main() {
         ESP_LOGE(LOG_TAG, "%s initialize controller failed: %s", __func__, esp_err_to_name(ret));
         return;
     }
-
+    
     ret = esp_bt_controller_enable(ESP_BT_MODE_BLE); // KOE ESP_BT_MODE_BLE ESP_BT_MODE_BTDM
     if (ret) {
         ESP_LOGE(LOG_TAG, "%s enable controller failed: %s", __func__, esp_err_to_name(ret));
@@ -230,7 +244,7 @@ extern "C" void app_main() {
     //return;
 
      while (1) {
-        printf("Main loop running.\n");
+        printf("\033[1;44m\033[1;31mMain loop running.\033[0m\n");
         vTaskDelay(pdMS_TO_TICKS(10000));
     }
 
