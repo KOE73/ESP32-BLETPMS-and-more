@@ -6,13 +6,20 @@
 #include "esp_event.h"
 //#include "esp_http_server.h"
 
+#include "modules/wifi/wifi_secret.hpp"
+
 
 // Теги для логирования
 static const char *TAG_WIFI = "WIFI";
 
 // Настройки Wi-Fi
+#ifndef WIFI_SSID
 #define WIFI_SSID "Your_SSID"
+#endif
+#ifndef WIFI_PASS
 #define WIFI_PASS "Your_PASSWORD"
+#endif
+
 #define AP_SSID "ESP32_AP"
 #define AP_PASS "12345678"
 
@@ -38,10 +45,10 @@ void wifi_init(void)
 
 
     ESP_LOGI(TAG_WIFI, "Initializing Wi-Fi...");
-    esp_netif_init();
+    //sp_netif_init();
 
-    esp_netif_create_default_wifi_ap();
-    esp_netif_create_default_wifi_sta();
+    //esp_netif_create_default_wifi_ap();
+    //esp_netif_create_default_wifi_sta();
     //esp_netif_create_default_wifi_nan();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -62,8 +69,9 @@ void wifi_init(void)
         },
     };
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    //ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    //ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 

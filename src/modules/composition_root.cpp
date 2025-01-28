@@ -6,7 +6,7 @@
 #include "esp_event.h"
 
 #include <modules/ble/ble.hpp>
-#include <modules/wifi/web.hpp>
+#include <modules/wifi/wifi.hpp>
 #include <modules/web/web.hpp>
 #include <modules/store/store.hpp>
 
@@ -37,7 +37,7 @@ void init_main(void)
 
     // Инициализация BLE
     ble_init();
-    start_ble_scan();
+    //start_ble_scan();
 
 
 }

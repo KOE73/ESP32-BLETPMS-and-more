@@ -11,6 +11,15 @@
 // Теги для логирования
 static const char *TAG_BLE = "BLE";
 
+// Pointer to User defined scan_params data structure. This memory space can not be freed until callback of set_scan_params
+esp_ble_scan_params_t scan_params = {
+    .scan_type = BLE_SCAN_TYPE_PASSIVE,
+    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
+    .scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
+    .scan_interval = 0x50,
+    .scan_window = 0x30,
+    .scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE};
+
 // ====== BLE FUNCTIONS ======
 static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
@@ -57,14 +66,15 @@ static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_
 void ble_init(void)
 {
     ESP_LOGI(TAG_BLE, "Initializing BLE...");
+    esp_err_t ret;
 
     // Need call or skip?
-    esp_err_t ret = esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE(TAG_BLE, "Failed to release classic BT memory: %s", esp_err_to_name(ret));
-        return;
-    }
+    // esp_err_t ret = esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
+    // if (ret != ESP_OK)
+    //{
+    //    ESP_LOGE(TAG_BLE, "Failed to release classic BT memory: %s", esp_err_to_name(ret));
+    //    return;
+    //}
 
     // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/controller_vhci.html#_CPPv422esp_bt_controller_initP26esp_bt_controller_config_t
     // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/controller_vhci.html#_CPPv426esp_bt_controller_config_t
@@ -78,7 +88,9 @@ void ble_init(void)
 
     // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/controller_vhci.html#_CPPv424esp_bt_controller_enable13esp_bt_mode_t
     // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/controller_vhci.html#_CPPv413esp_bt_mode_t
-    ret = esp_bt_controller_enable(ESP_BT_MODE_BTDM); // ESP_BT_MODE_BLE
+    // try select from controller type
+    //ret = esp_bt_controller_enable(ESP_BT_MODE_BTDM); // ESP_BT_MODE_BLE ESP_BT_MODE_BTDM
+    ret = esp_bt_controller_enable(ESP_BT_MODE_BLE); // ESP_BT_MODE_BLE ESP_BT_MODE_BTDM
     if (ret != ESP_OK)
     {
         ESP_LOGE(TAG_BLE, "Failed to enable BLE: %s", esp_err_to_name(ret));
@@ -106,16 +118,8 @@ void ble_init(void)
         return;
     }
 
-    esp_ble_scan_params_t p = {
-        .scan_type = BLE_SCAN_TYPE_PASSIVE,
-        .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
-        .scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
-        .scan_interval = 0x50,
-        .scan_window = 0x30,
-        .scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE};
-
     // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/esp_gap_ble.html#_CPPv427esp_ble_gap_set_scan_paramsP21esp_ble_scan_params_t
-    ret = esp_ble_gap_set_scan_params(&p);
+    ret = esp_ble_gap_set_scan_params(&scan_params);
     if (ret != ESP_OK)
     {
         ESP_LOGE(TAG_BLE, "Failed esp_ble_gap_set_scan_params: %s", esp_err_to_name(ret));
