@@ -19,7 +19,6 @@
 
 #include "esp_bt.h"
 #include "esp_bt_defs.h"
-#include "esp_gap_ble_api.h"
 
 #include "esp_gap_ble_api.h"
 #include "esp_gatts_api.h"
@@ -32,6 +31,8 @@
 #include "freertos/semphr.h"
 
 #include "esp_gatt_defs.h"
+
+#include "ble/esp_gap_ble_api_to_string.h"
 
 
 #define FUNC_SEND_WAIT_SEM(func, sem) do {\
@@ -63,7 +64,7 @@ static esp_ble_gap_periodic_adv_sync_params_t periodic_adv_sync_params = {
     .filter_policy = 0,
     .sid = 0,
     .addr_type = BLE_ADDR_TYPE_RANDOM,
-    .skip = 10,
+    .skip = 0,//10,
     .sync_timeout = 1000,
 };
 
@@ -72,8 +73,7 @@ bool periodic_sync = false;
 
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
-    //ESP_LOGI(LOG_TAG, "Event %d", event);
-
+   
     switch (event) {
     case ESP_GAP_BLE_SET_EXT_SCAN_PARAMS_COMPLETE_EVT:
         xSemaphoreGive(test_sem);
@@ -116,17 +116,11 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         uint8_t adv_name_s_len = 0;
 
            
-	    adv_name_s = esp_ble_resolve_adv_data_by_type(param->ext_adv_report.params.adv_data,
-                                            param->ext_adv_report.params.adv_data_len,
-                                            ESP_BLE_AD_TYPE_NAME_SHORT,
-                                            &adv_name_s_len);
-
-
-
 	    adv_name = esp_ble_resolve_adv_data_by_type(param->ext_adv_report.params.adv_data,
                                             param->ext_adv_report.params.adv_data_len,
                                             ESP_BLE_AD_TYPE_NAME_CMPL,
                                             &adv_name_len);
+
  	    if ((adv_name != NULL) && (memcmp(adv_name, remote_device_name, adv_name_len) == 0) && !periodic_sync) {
             //ESP_LOGI(LOG_TAG, "Event adv_name %d len %d", adv_name, adv_name_len);
             //ESP_LOGI(LOG_TAG, "Event adv_name %d len %hhu", adv_name, adv_name_len);
@@ -139,23 +133,45 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
             periodic_adv_sync_params.sid = param->ext_adv_report.params.sid;
 	        periodic_adv_sync_params.addr_type =(esp_ble_addr_type_t) (param->ext_adv_report.params.addr_type);
 	        memcpy(periodic_adv_sync_params.addr, param->ext_adv_report.params.addr, sizeof(esp_bd_addr_t));
-            esp_ble_gap_periodic_adv_create_sync(&periodic_adv_sync_params);
+            ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gap_periodic_adv_create_sync(&periodic_adv_sync_params));
 	    }
 
-        adv_name = esp_ble_resolve_adv_data_by_type(param->ext_adv_report.params.adv_data,
+	    adv_name_s = esp_ble_resolve_adv_data_by_type(param->ext_adv_report.params.adv_data,
                                             param->ext_adv_report.params.adv_data_len,
-                                            ESP_BLE_AD_TYPE_NAME_CMPL,
-                                             &adv_name_len);
-         if (adv_name != NULL ) {
+                                            ESP_BLE_AD_TYPE_NAME_SHORT,
+                                            &adv_name_s_len);
+        if (adv_name != NULL ) {
             std::string str((char*)adv_name);
             str.resize(adv_name_len);
             ESP_LOGI(LOG_TAG, "Event adv_name long %s len %i", str.c_str(), str.length());
-	     }
-         if (adv_name_s != NULL) {
+	    }
+        if (adv_name_s != NULL) {
             std::string str((char*)adv_name_s);
             str.resize(adv_name_s_len);
             ESP_LOGI(LOG_TAG, "Event adv_name short %s len %i", str.c_str(), str.length());
         }
+
+
+        uint8_t *adv_appearance;
+        uint8_t adv_appearance_len = 0;
+
+	    adv_appearance = esp_ble_resolve_adv_data_by_type(param->ext_adv_report.params.adv_data,
+                                            param->ext_adv_report.params.adv_data_len,
+                                            ESP_BLE_AD_TYPE_APPEARANCE,
+                                            &adv_appearance_len);
+        //ESP_LOGI(LOG_TAG, "Appearance %s len %hhu", get_ble_appearance_name(*((uint16_t*)adv_appearance)), adv_appearance_len);
+        ESP_LOGI(LOG_TAG, "Appearance len %hhu", adv_appearance_len);
+                                            
+
+        ESP_LOGI(LOG_TAG, "SID %hhu %02X:%02X:%02X:%02X:%02X:%02X", 
+            param->ext_adv_report.params.sid,
+            param->ext_adv_report.params.addr[0],
+            param->ext_adv_report.params.addr[1],
+            param->ext_adv_report.params.addr[2],
+            param->ext_adv_report.params.addr[3],
+            param->ext_adv_report.params.addr[4],
+            param->ext_adv_report.params.addr[5]);
+	   
     }
         break;
     case ESP_GAP_BLE_PERIODIC_ADV_REPORT_EVT:
@@ -166,6 +182,8 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         break;
 
     default:
+        ESP_LOGI(LOG_TAG, "Event!!!! %d", event);
+
         break;
     }
 }
@@ -244,7 +262,7 @@ extern "C" void app_main() {
     //return;
 
      while (1) {
-        printf("\033[1;44m\033[1;31mMain loop running.\033[0m\n");
+        printf("\033[03;38;05;222mMain loop running.\033[0m\n");
         vTaskDelay(pdMS_TO_TICKS(10000));
     }
 
