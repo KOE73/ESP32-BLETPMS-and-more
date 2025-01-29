@@ -27,8 +27,6 @@ void init_main(void)
 {
     ESP_LOGI(TAG_MAIN, "Initializing ESP32...");
 
-
-
     // Инициализация файловой системы
     fs_init();
 
@@ -38,6 +36,8 @@ void init_main(void)
     // Инициализация BLE
     ble_init();
     //start_ble_scan();
+
+    start_web_server();
 
 
 }

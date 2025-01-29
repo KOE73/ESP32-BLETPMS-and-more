@@ -13,6 +13,7 @@
 
 #include "esp_system.h"
 #include "esp_log.h"
+#include "esp_event.h"
 
 #include "modules/composition_root.hpp"
 
@@ -20,6 +21,8 @@
 
 #include "ble/esp_gap_ble_api_to_string.h"
 
+static const char *TAG_MAIN = "MAIN";
+ 
 void print_partition_table()
 {
     const esp_partition_t *partition = NULL;
@@ -38,17 +41,26 @@ void print_partition_table()
 extern "C" void app_main()
 {
 
-    static const char *TAG = "MAIN";
-    vTaskDelay(pdMS_TO_TICKS(4000)); // Задержка на 1000 миллисекунд
-    ESP_LOGI(TAG, "Программа запущена V3 !");
+     vTaskDelay(pdMS_TO_TICKS(4000)); // Задержка на 1000 миллисекунд
+    ESP_LOGI(TAG_MAIN, "Программа запущена V3 !");
 
     for (int i = 0; i < 10; i++)
     {
         vTaskDelay(pdMS_TO_TICKS(250)); // Задержка на 1000 миллисекунд
-        ESP_LOGI(TAG, "%d", i);
+        ESP_LOGI(TAG_MAIN, "%d", i);
     }
 
     print_partition_table();
+
+    // Создание стандартного цикла событий
+    // TODO вынести в главный инициализатор
+    esp_err_t ret = esp_event_loop_create_default();
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG_MAIN, "Failed to create event loop");
+        return;
+    }
+
 
     init_main();
 

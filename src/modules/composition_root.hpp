@@ -11,10 +11,6 @@
 
 // pio run -t menuconfig
 
-// Теги для логирования
-static const char *TAG_MAIN = "MAIN";
-
-
 
 // ====== MAIN ======
 void init_main(void);
