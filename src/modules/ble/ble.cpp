@@ -34,7 +34,7 @@ static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_
     case ESP_GAP_BLE_SCAN_RESULT_EVT:
     {
         // Too many strings out
-        //auto scan_result = param->scan_rst;
+        auto scan_result = param->scan_rst;
         //if (scan_result.search_evt == ESP_GAP_SEARCH_INQ_RES_EVT)
         //{
         //    ESP_LOGI(TAG_BLE, "Found device: Addr: %02x:%02x:%02x:%02x:%02x:%02x, RSSI: %d",

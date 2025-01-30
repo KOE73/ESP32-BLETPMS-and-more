@@ -69,6 +69,7 @@ extern "C" void app_main()
     while (1)
     {
         printf("\033[03;38;05;222mMain loop running.\033[0m\n");
-        vTaskDelay(pdMS_TO_TICKS(10000));
+        ESP_LOGI("XX","XX");
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }

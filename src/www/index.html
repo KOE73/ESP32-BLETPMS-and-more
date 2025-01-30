@@ -1,10 +1,26 @@
 <html>
-
+    <meta charset="UTF-8">
+    <title>SSE Client</title>
 <head>
     <link rel='stylesheet' href='css.css' type='text/css'>
 </head>
 
-<body>It's body! Hello, ESP32 Web Server!</body>
-</div>
+<body>
+    It's body! Hello, ESP32 Web Server!
+    <div id="output"></div>
+    <script>
+        const host = window.location.origin;
+        const eventSource = new EventSource(host+'/logs');
+        eventSource.onmessage = (e) => {
+            console.log(e.data);
+            document.getElementById("output").innerHTML += "<p>" + event.data + "</p>";
+        };
+
+        eventSource.onerror = function () {
+            console.error("SSE connection lost");
+        };
+    </script>
+
+</body>
 
 </html>

@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_http_server.h"
+
+#include "sys/queue.h"
 
 /*
     https://docs.platformio.org/en/latest/platforms/espressif32.html#embedding-binary-data
@@ -30,6 +33,121 @@
 // Теги для логирования
 static const char *TAG_WEB = "WEB";
 
+#pragma region Events
+
+#define MAX_CLIENTS 5
+
+typedef struct client_session
+{
+    httpd_req_t *req;
+    httpd_handle_t handle;
+    int fd;
+    STAILQ_ENTRY(client_session)
+    entry;
+} client_session_t;
+
+STAILQ_HEAD(client_sessions, client_session)
+clients;
+static struct client_sessions active_clients;
+static pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void send_log_to_clients(const char *log)
+{
+    char sse_data[512];
+    snprintf(sse_data, sizeof(sse_data), "data: %s\n\n", log);
+
+    pthread_mutex_lock(&clients_mutex);
+
+    client_session_t *client;
+    STAILQ_FOREACH(client, &active_clients, entry)
+    {
+        // httpd_send(client->req, sse_data, strlen(sse_data));
+        httpd_resp_send_chunk(client->req, sse_data, strlen(sse_data));
+    }
+
+    pthread_mutex_unlock(&clients_mutex);
+}
+
+static vprintf_like_t original_vprintf = NULL; // Сохраняем стандартный vprintf
+
+static int custom_vprintf(const char *fmt, va_list args)
+{
+    char log_msg[256];
+    int len = vsnprintf(log_msg, sizeof(log_msg), fmt, args);
+
+    printf("\033[03;38;05;222msend_log_to_clients %s.\033[0m",log_msg);
+
+    send_log_to_clients(log_msg);
+
+    // Дублирование в стандартный vprintf (консоль)
+    if (original_vprintf)
+    {
+        printf("\033[03;38;05;222moriginal_vprintf %s.\033[0m",log_msg);
+
+        return original_vprintf(fmt, args);
+    }
+
+    return len;
+}
+
+static esp_err_t logs_get_handler(httpd_req_t *req)
+{
+    // ESP_LOGI(TAG_WEB,"Logs 1");
+    printf("\033[03;38;05;222mLogs 1.\033[0m\n");
+
+    // Устанавливаем заголовки SSE
+    httpd_resp_set_type(req, "text/event-stream");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
+    httpd_resp_set_hdr(req, "Connection", "keep-alive");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*"); // ?
+
+    // Добавляем нового клиента в список
+    client_session_t *client = (client_session_t *)malloc(sizeof(client_session_t));
+    client->req = req;
+    client->handle = req->handle;
+    client->fd = httpd_req_to_sockfd(req);
+
+    // ESP_LOGI(TAG_WEB, "Logs 2");
+    printf("\033[03;38;05;222mLogs 2.\033[0m\n");
+
+    pthread_mutex_lock(&clients_mutex);
+    STAILQ_INSERT_TAIL(&active_clients, client, entry);
+    pthread_mutex_unlock(&clients_mutex);
+
+    // ESP_LOGI(TAG_WEB, "Logs 3");
+    printf("\033[03;38;05;222mLogs 3.\033[0m\n");
+
+    // Удерживаем соединение открытым
+    while (true)
+    {
+        // ESP_LOGI(TAG_WEB, "Logs 4");
+        printf("\033[03;38;05;222mLogs 4.\033[0m\n");
+
+        // Отправляем данные клиенту
+        if (httpd_resp_send_chunk(req, "tick\n", HTTPD_RESP_USE_STRLEN) != ESP_OK)
+        {
+            ESP_LOGE(TAG_WEB, "Failed to send SSE data");
+            break;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    // ESP_LOGI(TAG_WEB, "Logs 5");
+    printf("\033[03;38;05;222mLogs 5.\033[0m\n");
+
+    // Удаляем клиента из списка
+    pthread_mutex_lock(&clients_mutex);
+    STAILQ_REMOVE(&active_clients, client, client_session, entry);
+    pthread_mutex_unlock(&clients_mutex);
+
+    free(client);
+
+    return ESP_OK;
+}
+
+#pragma endregion Events
+
 // ====== WEB SERVER FUNCTIONS ======
 static esp_err_t hello_get_handler(httpd_req_t *req)
 {
@@ -38,39 +156,19 @@ static esp_err_t hello_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-static esp_err_t main_get_handler(httpd_req_t *req)
-{
-    const char *resp = "<html><head><link rel='stylesheet' href='css.css' type='text/css'></head><body>It's body! Hello, ESP32 Web Server!</body></div></html>";
-    httpd_resp_send(req, resp, strlen(resp));
-    return ESP_OK;
-}
-
-extern const int index_html_length;
-extern const int css_css_length;
-
-//extern const uint8_t index_html_start[] asm("_binary_index_html_start");
-//extern const uint8_t index_html_end[] asm("_binary_index_html_end");
-extern const char css_css_start[] asm("_binary_css_css_start");
 extern const char index_html_start[] asm("_binary_index_html_start");
-//extern const char index_html_end[] asm("_binary_index_html_end");
-//extern const char *index_html asm("index_html");
-//extern const char *css_css asm("css_css");
-
+extern const int index_html_length;
 
 static esp_err_t index_get_handler(httpd_req_t *req)
 {
-    //size_t index_html_size = index_html_end - index_html_start;
-    printf("CSS file size: %zu\n", index_html_length);
-    printf("CSS content: %.*s\n", index_html_length, index_html_start);
-
     httpd_resp_send(req, index_html_start, index_html_length);
     return ESP_OK;
 }
 
+extern const char css_css_start[] asm("_binary_css_css_start");
+extern const int css_css_length;
 static esp_err_t css_get_handler(httpd_req_t *req)
 {
-    //const char *resp = "body {font-size: xxx-large;}";
-    //httpd_resp_send(req, resp, strlen(resp));
     httpd_resp_send(req, css_css_start, css_css_length);
     return ESP_OK;
 }
@@ -80,6 +178,7 @@ static const httpd_uri_t uri_list[] = {
     {.uri = "/", .method = HTTP_GET, .handler = index_get_handler},
     {.uri = "/hello", .method = HTTP_GET, .handler = hello_get_handler},
     {.uri = "/css.css", .method = HTTP_GET, .handler = css_get_handler},
+    {.uri = "/logs", .method = HTTP_GET, .handler = logs_get_handler},
     //{ .uri = "/status", .method = HTTP_GET, .handler = status_handler },
     //{ .uri = "/post", .method = HTTP_POST, .handler = post_handler }
 };
@@ -98,18 +197,18 @@ esp_err_t start_web_server(void)
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     httpd_handle_t server = NULL;
 
-    if (httpd_start(&server, &config) == ESP_OK)
+    if (httpd_start(&server, &config) != ESP_OK)
     {
-        register_routes(server);
-        // httpd_uri_t hello_uri = {
-        //     .uri = "/hello",
-        //     .method = HTTP_GET,
-        //     .handler = hello_get_handler,
-        //     .user_ctx = NULL,
-        // };
-        // httpd_register_uri_handler(server, &hello_uri);
-        return ESP_OK;
+        return ESP_FAIL;
     }
 
-    return ESP_FAIL;
+    register_routes(server);
+
+    // Инициализация списка клиентов
+    STAILQ_INIT(&active_clients);
+
+    // Регистрация кастомного обработчика логов
+    original_vprintf = esp_log_set_vprintf(custom_vprintf);
+
+    return ESP_OK;
 }
