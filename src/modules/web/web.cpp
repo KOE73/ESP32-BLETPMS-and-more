@@ -9,6 +9,11 @@
 
 #include "sys/queue.h"
 
+#include "web.hpp"
+#include "WebServer.hpp"
+
+// using WebServer::WebServer;
+
 /*
     https://docs.platformio.org/en/latest/platforms/espressif32.html#embedding-binary-data
 
@@ -32,6 +37,17 @@
 
 // Теги для логирования
 static const char *TAG_WEB = "WEB";
+
+WebServer::WebServer webServer;
+
+WebServer::UriHandlerBase x(webServer);
+
+//  AsyncWebServer server(80);
+//  // Создание WebSocket обработчика
+//  AsyncWebSocket ws("/ws");
+//  // Отправка SSE-сообщений каждую секунду
+//  unsigned long lastMillis = 0;
+//  AsyncEventSource events("/events");
 
 #pragma region Events
 
@@ -75,14 +91,14 @@ static int custom_vprintf(const char *fmt, va_list args)
     char log_msg[256];
     int len = vsnprintf(log_msg, sizeof(log_msg), fmt, args);
 
-    printf("\033[03;38;05;222msend_log_to_clients %s.\033[0m",log_msg);
+    printf("\033[03;38;05;222msend_log_to_clients %s.\033[0m", log_msg);
 
     send_log_to_clients(log_msg);
 
     // Дублирование в стандартный vprintf (консоль)
     if (original_vprintf)
     {
-        printf("\033[03;38;05;222moriginal_vprintf %s.\033[0m",log_msg);
+        printf("\033[03;38;05;222moriginal_vprintf %s.\033[0m", log_msg);
 
         return original_vprintf(fmt, args);
     }
@@ -194,21 +210,29 @@ static void register_routes(httpd_handle_t server)
 // Could it be done through events, without direct calls?
 esp_err_t start_web_server(void)
 {
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    httpd_handle_t server = NULL;
+    // httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    // httpd_handle_t server = NULL;
+    //
+    // if (httpd_start(&server, &config) != ESP_OK)
+    //{
+    //    return ESP_FAIL;
+    //}
+    // webServer.AddUriHandler(new );
 
-    if (httpd_start(&server, &config) != ESP_OK)
+    if (webServer.Start() != ESP_OK)
     {
+        ESP_LOGI(TAG_WEB, "WebServer not started");
         return ESP_FAIL;
     }
-
-    register_routes(server);
+  ESP_LOGI(TAG_WEB, "WebServer Started");
+      
+    // register_routes(server);
 
     // Инициализация списка клиентов
     STAILQ_INIT(&active_clients);
 
     // Регистрация кастомного обработчика логов
-    original_vprintf = esp_log_set_vprintf(custom_vprintf);
+    // original_vprintf = esp_log_set_vprintf(custom_vprintf);
 
     return ESP_OK;
 }

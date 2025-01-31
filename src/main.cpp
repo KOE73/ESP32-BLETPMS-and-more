@@ -66,10 +66,11 @@ extern "C" void app_main()
 
     vTaskDelay(200 / portTICK_PERIOD_MS);
 
-    while (1)
+    for (int i= 0; i<5;i++)
     {
         printf("\033[03;38;05;222mMain loop running.\033[0m\n");
         ESP_LOGI("XX","XX");
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
+    esp_restart();
 }
