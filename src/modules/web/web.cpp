@@ -36,11 +36,17 @@
 */
 
 // Теги для логирования
-static const char *TAG_WEB = "WEB";
+static const char *TAG_WEB = "WEB XxX";
+
+extern const char index_html_start[] asm("_binary_index_html_start");
+extern const int index_html_length;
+extern const char css_css_start[] asm("_binary_css_css_start");
+extern const int css_css_length;
 
 WebServer::WebServer webServer;
-
 WebServer::UriHandlerBase x(webServer);
+WebServer::UriHandlerBase index_(webServer,"/index",index_html_start);
+WebServer::UriHandlerBase css_(webServer,"/css.css",css_css_start, css_css_length);
 
 //  AsyncWebServer server(80);
 //  // Создание WebSocket обработчика
@@ -172,8 +178,6 @@ static esp_err_t hello_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-extern const char index_html_start[] asm("_binary_index_html_start");
-extern const int index_html_length;
 
 static esp_err_t index_get_handler(httpd_req_t *req)
 {
@@ -181,8 +185,7 @@ static esp_err_t index_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-extern const char css_css_start[] asm("_binary_css_css_start");
-extern const int css_css_length;
+
 static esp_err_t css_get_handler(httpd_req_t *req)
 {
     httpd_resp_send(req, css_css_start, css_css_length);
@@ -219,13 +222,18 @@ esp_err_t start_web_server(void)
     //}
     // webServer.AddUriHandler(new );
 
+    // webServer = new WebServer::WebServer (true);
+    // x = new WebServer::UriHandlerBase(*webServer);
+    
+    ESP_LOGI(TAG_WEB, "WebServer Starting");
+
     if (webServer.Start() != ESP_OK)
     {
         ESP_LOGI(TAG_WEB, "WebServer not started");
         return ESP_FAIL;
     }
-  ESP_LOGI(TAG_WEB, "WebServer Started");
-      
+    ESP_LOGI(TAG_WEB, "WebServer Started");
+
     // register_routes(server);
 
     // Инициализация списка клиентов

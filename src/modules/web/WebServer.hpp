@@ -63,8 +63,13 @@ namespace WebServer
     private:
         httpd_handle_t _httpd_handle = NULL;
         esp_err_t _httpd_start_err;
+        std::vector<std::reference_wrapper<UriHandlerBase>> _handlers;
+
+        void AddHandler(UriHandlerBase &handler);
 
     public:
+        friend class UriHandlerBase;
+
         WebServer(/* args */);
         WebServer(bool started);
         ~WebServer();
@@ -73,6 +78,7 @@ namespace WebServer
         httpd_handle_t getHandle() const { return _httpd_handle; }
 
         esp_err_t Start();
+        esp_err_t Stop();
 
         // esp_err_t AddUriHandler(UriHandlerBase &handler)
         //{
@@ -88,6 +94,8 @@ namespace WebServer
         const char *_uri;
         httpd_method_t _method = HTTP_GET;
         httpd_uri_t _httpd_uri;
+        const char *_text = "oK";
+        ssize_t _text_len = 2;
 
         // static esp_err_t index_get_handler1(httpd_req_t *req)
         //{
@@ -98,18 +106,17 @@ namespace WebServer
     public:
         UriHandlerBase(WebServer &server);
         UriHandlerBase(WebServer &server, const char *uri);
+        UriHandlerBase(WebServer &server, const char *uri, const char *text);
+        UriHandlerBase(WebServer &server, const char *uri, const char *text, ssize_t buf_len);
         ~UriHandlerBase();
 
         httpd_method_t getMethod() const { return _method; }
         const char *getUri() const { return _uri; }
+virtual const char*getText() const { return _text; };
 
-        virtual esp_err_t Handler(httpd_req_t *req)
-        {
-            ESP_LOGI("TTT", "UriHandlerBase %s", req->uri);
+        void Register();
 
-            httpd_resp_send(req, "oK", 2);
-            return ESP_OK;
-        }
+        virtual esp_err_t Handler(httpd_req_t *req);
 
         WebServer &getWebServer() const { return _webServer; }
     };
