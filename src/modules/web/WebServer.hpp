@@ -75,7 +75,7 @@ namespace WebServer
         ~WebServer();
         virtual httpd_config_t MakeConfig() { return HTTPD_DEFAULT_CONFIG(); }
 
-        httpd_handle_t getHandle() const { return _httpd_handle; }
+        httpd_handle_t getServerHandle() const { return _httpd_handle; }
 
         esp_err_t Start();
         esp_err_t Stop();
