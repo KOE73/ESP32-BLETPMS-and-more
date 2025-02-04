@@ -137,7 +137,7 @@ namespace WebServer
     {
         ESP_LOGI(TAG_WEB_SERVER, LOG_WEB_COLOR "Destructor UriHandlerBase" LOG_ANSI_COLOR_RESET);
 
-        httpd_unregister_uri_handler(_webServer.getHandle(), _httpd_uri.uri, _httpd_uri.method);
+        httpd_unregister_uri_handler(_webServer.getServerHandle(), _httpd_uri.uri, _httpd_uri.method);
     }
 
     void UriHandlerBase::Register()
@@ -149,7 +149,7 @@ namespace WebServer
 
         ESP_LOGI(TAG_WEB_SERVER, LOG_WEB_COLOR "Register UriHandlerBase %s" LOG_ANSI_COLOR_RESET, _httpd_uri.uri);
 
-        auto err = httpd_register_uri_handler(_webServer.getHandle(), &_httpd_uri);
+        auto err = httpd_register_uri_handler(_webServer.getServerHandle(), &_httpd_uri);
 
         ESP_LOGI(TAG_WEB_SERVER, LOG_WEB_COLOR "Register UriHandlerBase %i" LOG_ANSI_COLOR_RESET, err);
     }
