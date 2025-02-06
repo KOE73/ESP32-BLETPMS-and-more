@@ -45,4 +45,5 @@
 .vscode/ipch
 
 *secret.*
-**/demoEx/
+
+# **/demoEx/

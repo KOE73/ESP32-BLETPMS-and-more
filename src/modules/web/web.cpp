@@ -48,6 +48,9 @@ WebServer::UriHandlerBase x(webServer);
 WebServer::UriHandlerBase index_(webServer,"/index",index_html_start);
 WebServer::UriHandlerBase css_(webServer,"/css.css",css_css_start, css_css_length);
 
+#include "demoEx/web_server_idf.h"
+AsyncWebServer aServer(81);
+
 //  AsyncWebServer server(80);
 //  // Создание WebSocket обработчика
 //  AsyncWebSocket ws("/ws");
@@ -233,6 +236,8 @@ esp_err_t start_web_server(void)
         return ESP_FAIL;
     }
     ESP_LOGI(TAG_WEB, "WebServer Started");
+
+    aServer.begin();
 
     // register_routes(server);
 

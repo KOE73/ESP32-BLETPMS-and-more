@@ -1,0 +1,21 @@
+dependencies:
+  espressif/led_strip:
+    component_hash: null
+    source:
+      path: C:\ESP32\C6\ESP32-C6-LCD-1.47-Test\components\espressif__led_strip
+      type: local
+    version: 2.5.5
+  idf:
+    component_hash: null
+    source:
+      type: idf
+    version: 5.4.0
+  lvgl/lvgl:
+    component_hash: null
+    source:
+      path: C:\ESP32\C6\ESP32-C6-LCD-1.47-Test\components\lvgl__lvgl
+      type: local
+    version: 8.3.11
+manifest_hash: 94555659496c6a94cc4aef8648504ccc0d9d84d4e442f44748a58cc62f3c26e7
+target: esp32c6
+version: 1.0.0
