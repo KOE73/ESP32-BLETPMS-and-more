@@ -99,6 +99,7 @@ namespace esphome
   // Mathematics
 
   float lerp(float completion, float start, float end) { return start + (end - start) * completion; }
+
   uint8_t crc8(const uint8_t *data, uint8_t len)
   {
     uint8_t crc = 0;
@@ -230,81 +231,19 @@ namespace esphome
     return hash;
   }
 
-#ifdef USE_ESP32
+
   uint32_t random_uint32() { return esp_random(); }
-#elif defined(USE_ESP8266)
-  uint32_t random_uint32() { return os_random(); }
-#elif defined(USE_RP2040)
-  uint32_t random_uint32()
-  {
-    uint32_t result = 0;
-    for (uint8_t i = 0; i < 32; i++)
-    {
-      result <<= 1;
-      result |= rosc_hw->randombit;
-    }
-    return result;
-  }
-#elif defined(USE_LIBRETINY)
-  uint32_t random_uint32() { return rand(); }
-#elif defined(USE_HOST)
-  uint32_t random_uint32()
-  {
-    std::random_device dev;
-    std::mt19937 rng(dev());
-    std::uniform_int_distribution<uint32_t> dist(0, std::numeric_limits<uint32_t>::max());
-    return dist(rng);
-  }
-#endif
+
+
   float random_float() { return static_cast<float>(random_uint32()) / static_cast<float>(UINT32_MAX); }
-#ifdef USE_ESP32
+
+
   bool random_bytes(uint8_t *data, size_t len)
   {
     esp_fill_random(data, len);
     return true;
   }
-#elif defined(USE_ESP8266)
-  bool random_bytes(uint8_t *data, size_t len) { return os_get_random(data, len) == 0; }
-#elif defined(USE_RP2040)
-  bool random_bytes(uint8_t *data, size_t len)
-  {
-    while (len-- != 0)
-    {
-      uint8_t result = 0;
-      for (uint8_t i = 0; i < 8; i++)
-      {
-        result <<= 1;
-        result |= rosc_hw->randombit;
-      }
-      *data++ = result;
-    }
-    return true;
-  }
-#elif defined(USE_LIBRETINY)
-  bool random_bytes(uint8_t *data, size_t len)
-  {
-    lt_rand_bytes(data, len);
-    return true;
-  }
-#elif defined(USE_HOST)
-  bool random_bytes(uint8_t *data, size_t len)
-  {
-    FILE *fp = fopen("/dev/urandom", "r");
-    if (fp == nullptr)
-    {
-      ESP_LOGW(TAG, "Could not open /dev/urandom, errno=%d", errno);
-      exit(1);
-    }
-    size_t read = fread(data, 1, len, fp);
-    if (read != len)
-    {
-      ESP_LOGW(TAG, "Not enough data from /dev/urandom");
-      exit(1);
-    }
-    fclose(fp);
-    return true;
-  }
-#endif
+
 
   // Strings
 
@@ -312,6 +251,7 @@ namespace esphome
   {
     return strcasecmp(a.c_str(), b.c_str()) == 0;
   }
+
 #if ESP_IDF_VERSION_MAJOR >= 5
   bool str_startswith(const std::string &str, const std::string &start) { return str.starts_with(start); }
   bool str_endswith(const std::string &str, const std::string &end) { return str.ends_with(end); }
@@ -322,6 +262,7 @@ namespace esphome
     return str.rfind(end) == (str.size() - end.size());
   }
 #endif
+
   std::string str_truncate(const std::string &str, size_t length)
   {
     return str.length() > length ? str.substr(0, length) : str;

@@ -103,7 +103,7 @@ namespace esphome
 
     class AsyncWebServerRequest
     {
-      friend class AsyncWebServer;
+      friend class IDFWebServer;
 
     protected:
       httpd_req_t *req_;
@@ -186,11 +186,11 @@ namespace esphome
 
     class AsyncWebHandler;
 
-    class AsyncWebServer
+    class IDFWebServer
     {
     protected:
       uint16_t port_{};
-      httpd_handle_t server_{};
+      httpd_handle_t _httpd_handle{};
 
       esp_err_t request_handler_(AsyncWebServerRequest *request) const;
       std::vector<AsyncWebHandler *> handlers_;
@@ -202,8 +202,8 @@ namespace esphome
 #pragma endregion
 
     public:
-      AsyncWebServer(uint16_t port) : port_(port) {};
-      ~AsyncWebServer() { this->end(); }
+      IDFWebServer(uint16_t port) : port_(port) {};
+      ~IDFWebServer() { this->end(); }
 
       void onNotFound(std::function<void(AsyncWebServerRequest *request)> fn) { on_not_found_ = std::move(fn); }
 
@@ -229,33 +229,33 @@ namespace esphome
       virtual bool isRequestHandlerTrivial() { return true; }
     };
 
-    class AsyncEventSource;
+    class AsyncWebHandlerEventSource;
 
     class AsyncEventSourceResponse
     {
-      friend class AsyncEventSource;
+      friend class AsyncWebHandlerEventSource;
 
     public:
       void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0);
 
     protected:
-      AsyncEventSourceResponse(const AsyncWebServerRequest *request, AsyncEventSource *server);
+      AsyncEventSourceResponse(const AsyncWebServerRequest *request, AsyncWebHandlerEventSource *server);
       static void destroy(void *p);
-      AsyncEventSource *server_;
-      httpd_handle_t hd_{};
+      AsyncWebHandlerEventSource *_eventSource;
+      httpd_handle_t _httpd_handle{};
       int fd_{};
     };
 
     using AsyncEventSourceClient = AsyncEventSourceResponse;
 
-    class AsyncEventSource : public AsyncWebHandler
+    class AsyncWebHandlerEventSource : public AsyncWebHandler
     {
       friend class AsyncEventSourceResponse;
       using connect_handler_t = std::function<void(AsyncEventSourceClient *)>;
 
     public:
-      AsyncEventSource(std::string url) : url_(std::move(url)) {}
-      ~AsyncEventSource() override;
+      AsyncWebHandlerEventSource(std::string url) : url_(std::move(url)) {}
+      ~AsyncWebHandlerEventSource() override;
 
       bool canHandle(AsyncWebServerRequest *request) override
       {

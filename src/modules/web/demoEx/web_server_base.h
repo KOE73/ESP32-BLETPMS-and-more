@@ -91,19 +91,23 @@ namespace esphome
 
     } // namespace internal
 
-    // Либо не нужен либо творчески переработать
-    class WebServerBase //: public Component
+    /// @brief Либо не нужен либо творчески переработать
+    /// Именн этот класс владел реальным веб сервером с портом и прочим
+    ///  а ткаже настройками пользователя и пароля
+    /// ОБработчики добавляемые через него midleware используют имя пароль
+    class WebServerBaseComponent
     {
     protected:
       friend class OTARequestHandler;
 
       int initialized_{0};
       uint16_t port_{80};
-      std::shared_ptr<AsyncWebServer> server_{nullptr};
+      std::shared_ptr<IDFWebServer> _IDFWebServer{nullptr};
       std::vector<AsyncWebHandler *> handlers_;
       internal::Credentials credentials_;
 
     public:
+      // Запуск idf web сервера и присоединение локальных обработчиков
       void init()
       {
         if (this->initialized_)
@@ -111,15 +115,18 @@ namespace esphome
           this->initialized_++;
           return;
         }
-        
-        this->server_ = std::make_shared<AsyncWebServer>(this->port_);
+
+        // Делаем сервер
+        this->_IDFWebServer = std::make_shared<IDFWebServer>(this->port_);
 
         // All content is controlled and created by user - so allowing all origins is fine here.
         DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
-        this->server_->begin();
+
+        // Запускаем сервер
+        this->_IDFWebServer->begin();
 
         for (auto *handler : this->handlers_)
-          this->server_->addHandler(handler);
+          this->_IDFWebServer->addHandler(handler);
 
         this->initialized_++;
       }
@@ -129,15 +136,18 @@ namespace esphome
         this->initialized_--;
         if (this->initialized_ == 0)
         {
-          this->server_ = nullptr;
+          this->_IDFWebServer = nullptr;
         }
       }
-      std::shared_ptr<AsyncWebServer> get_server() const { return server_; }
+      std::shared_ptr<IDFWebServer> get_server() const { return _IDFWebServer; }
       float get_setup_priority() const;
 
       void set_auth_username(std::string auth_username) { credentials_.username = std::move(auth_username); }
       void set_auth_password(std::string auth_password) { credentials_.password = std::move(auth_password); }
 
+      // Добавление обработчика. Если ест имя пароль, то обработчик оборачивается в midleware
+      // обработчики хранятся локально
+      // если есть сервер, то сразу присоединяется к серверу
       void add_handler(AsyncWebHandler *handler);
 
       void add_ota_handler();
@@ -149,7 +159,7 @@ namespace esphome
     class OTARequestHandler : public AsyncWebHandler
     {
     public:
-      OTARequestHandler(WebServerBase *parent) : parent_(parent) {}
+      OTARequestHandler(WebServerBaseComponent *parent) : parent_(parent) {}
       void handleRequest(AsyncWebServerRequest *request) override;
       void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len,
                         bool final) override;
@@ -164,7 +174,7 @@ namespace esphome
     protected:
       uint32_t last_ota_progress_{0};
       uint32_t ota_read_length_{0};
-      WebServerBase *parent_;
+      WebServerBaseComponent *parent_;
     };
 
   } // namespace web_server_base

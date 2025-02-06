@@ -11,7 +11,7 @@ namespace esphome
 
     static const char *const TAG = "web_server_base";
 
-    void WebServerBase::add_handler(AsyncWebHandler *handler)
+    void WebServerBaseComponent::add_handler(AsyncWebHandler *handler)
     {
       // remove all handlers
 
@@ -20,9 +20,9 @@ namespace esphome
         handler = new internal::AuthMiddlewareHandler(handler, &credentials_);
       }
       this->handlers_.push_back(handler);
-      if (this->server_ != nullptr)
+      if (this->_IDFWebServer != nullptr)
       {
-        this->server_->addHandler(handler);
+        this->_IDFWebServer->addHandler(handler);
       }
     }
 
@@ -126,13 +126,13 @@ namespace esphome
 #endif
     }
 
-    void WebServerBase::add_ota_handler()
+    void WebServerBaseComponent::add_ota_handler()
     {
 #ifdef USE_ARDUINO
       this->add_handler(new OTARequestHandler(this)); // NOLINT
 #endif
     }
-    float WebServerBase::get_setup_priority() const
+    float WebServerBaseComponent::get_setup_priority() const
     {
       // Before WiFi (captive portal)
       // !!! return setup_priority::WIFI + 2.0f;

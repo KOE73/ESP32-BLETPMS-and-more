@@ -12,6 +12,9 @@
 #include "utils.h"
 #include "web_server_idf.h"
 
+static const char *TAG_WEB2_SERVER = "WEB2_SERVER";
+#define LOG_WEB2_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_BLUE, LOG_ANSI_COLOR_BG_CYAN)
+
 namespace esphome
 {
   namespace web_server_idf
@@ -26,18 +29,20 @@ namespace esphome
 
     static const char *const TAG = "web_server_idf";
 
-    void AsyncWebServer::end()
+    void IDFWebServer::end()
     {
-      if (this->server_)
+      if (this->_httpd_handle)
       {
-        httpd_stop(this->server_);
-        this->server_ = nullptr;
+        httpd_stop(this->_httpd_handle);
+        this->_httpd_handle = nullptr;
       }
     }
 
-    void AsyncWebServer::begin()
+    void IDFWebServer::begin()
     {
-      if (this->server_)
+      ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "Web2 Server Begin 1" LOG_ANSI_COLOR_RESET);
+
+      if (this->_httpd_handle)
       {
         this->end();
       }
@@ -48,55 +53,57 @@ namespace esphome
         return true;
       };
 
-      if (httpd_start(&this->server_, &config) == ESP_OK)
+      if (httpd_start(&this->_httpd_handle, &config) == ESP_OK)
       {
+        ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "Web2 Server Begin 2" LOG_ANSI_COLOR_RESET);
+
         const httpd_uri_t handler_get = {
             .uri = "",
             .method = HTTP_GET,
-            .handler = AsyncWebServer::request_get_handler,
+            .handler = IDFWebServer::request_get_handler,
             .user_ctx = this,
         };
-        httpd_register_uri_handler(this->server_, &handler_get);
+        httpd_register_uri_handler(this->_httpd_handle, &handler_get);
 
         const httpd_uri_t handler_post = {
             .uri = "",
             .method = HTTP_POST,
-            .handler = AsyncWebServer::request_post_handler,
+            .handler = IDFWebServer::request_post_handler,
             .user_ctx = this,
         };
-        httpd_register_uri_handler(this->server_, &handler_post);
+        httpd_register_uri_handler(this->_httpd_handle, &handler_post);
 
         const httpd_uri_t handler_options = {
             .uri = "",
             .method = HTTP_OPTIONS,
-            .handler = AsyncWebServer::request_get_handler,
+            .handler = IDFWebServer::request_get_handler,
             .user_ctx = this,
         };
-        httpd_register_uri_handler(this->server_, &handler_options);
+        httpd_register_uri_handler(this->_httpd_handle, &handler_options);
       }
     }
 
 #pragma region Handlers from C world to convert to C++ world
 
-    esp_err_t AsyncWebServer::request_get_handler(httpd_req_t *r)
+    esp_err_t IDFWebServer::request_get_handler(httpd_req_t *r)
     {
       // ESP_LOGVV(TAG, "Enter AsyncWebServer::request_handler. method=%u, uri=%s", r->method, r->uri);
-      ESP_LOGI(TAG, "Enter AsyncWebServer::request_handler. method=%u, uri=%s", r->method, r->uri);
+      ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "Enter AsyncWebServer::request_handler. method=%u, uri=%s", r->method, r->uri);
       AsyncWebServerRequest req(r);
-      return static_cast<AsyncWebServer *>(r->user_ctx)->request_handler_(&req);
+      return static_cast<IDFWebServer *>(r->user_ctx)->request_handler_(&req);
     }
 
-    esp_err_t AsyncWebServer::request_post_handler(httpd_req_t *r)
+    esp_err_t IDFWebServer::request_post_handler(httpd_req_t *r)
     {
       // ESP_LOGVV(TAG, "Enter AsyncWebServer::request_post_handler. uri=%s", r->uri);
-      ESP_LOGI(TAG, "Enter AsyncWebServer::request_post_handler. uri=%s", r->uri);
+      ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "Enter AsyncWebServer::request_post_handler. uri=%s", r->uri);
 
       auto content_type = request_get_header(r, "Content-Type");
       if (content_type.has_value() && *content_type != "application/x-www-form-urlencoded")
       {
         ESP_LOGW(TAG, "Only application/x-www-form-urlencoded supported for POST request");
         // fallback to get handler to support backward compatibility
-        return AsyncWebServer::request_get_handler(r);
+        return IDFWebServer::request_get_handler(r);
       }
 
       if (!request_has_header(r, "Content-Length"))
@@ -131,13 +138,13 @@ namespace esphome
       }
 
       AsyncWebServerRequest req(r, std::move(post_query));
-      return static_cast<AsyncWebServer *>(r->user_ctx)->request_handler_(&req);
+      return static_cast<IDFWebServer *>(r->user_ctx)->request_handler_(&req);
     }
 
 #pragma endregion
 
     // Метод обработки запросв в мире классов
-    esp_err_t AsyncWebServer::request_handler_(AsyncWebServerRequest *request) const
+    esp_err_t IDFWebServer::request_handler_(AsyncWebServerRequest *request) const
     {
       for (auto *handler : this->handlers_)
       {
@@ -328,7 +335,7 @@ namespace esphome
       this->print(str);
     }
 
-    AsyncEventSource::~AsyncEventSource()
+    AsyncWebHandlerEventSource::~AsyncWebHandlerEventSource()
     {
       for (auto *ses : this->sessions_)
       {
@@ -336,7 +343,7 @@ namespace esphome
       }
     }
 
-    void AsyncEventSource::handleRequest(AsyncWebServerRequest *request)
+    void AsyncWebHandlerEventSource::handleRequest(AsyncWebServerRequest *request)
     {
       auto *rsp = new AsyncEventSourceResponse(request, this); // NOLINT(cppcoreguidelines-owning-memory)
       if (this->on_connect_)
@@ -346,7 +353,7 @@ namespace esphome
       this->sessions_.insert(rsp);
     }
 
-    void AsyncEventSource::send(const char *message, const char *event, uint32_t id, uint32_t reconnect)
+    void AsyncWebHandlerEventSource::send(const char *message, const char *event, uint32_t id, uint32_t reconnect)
     {
       for (auto *ses : this->sessions_)
       {
@@ -354,8 +361,8 @@ namespace esphome
       }
     }
 
-    AsyncEventSourceResponse::AsyncEventSourceResponse(const AsyncWebServerRequest *request, AsyncEventSource *server)
-        : server_(server)
+    AsyncEventSourceResponse::AsyncEventSourceResponse(const AsyncWebServerRequest *request, AsyncWebHandlerEventSource *server)
+        : _eventSource(server)
     {
       httpd_req_t *req = *request;
 
@@ -374,14 +381,14 @@ namespace esphome
       req->sess_ctx = this;
       req->free_ctx = AsyncEventSourceResponse::destroy;
 
-      this->hd_ = req->handle;
+      this->_httpd_handle = req->handle;
       this->fd_ = httpd_req_to_sockfd(req);
     }
 
     void AsyncEventSourceResponse::destroy(void *ptr)
     {
       auto *rsp = static_cast<AsyncEventSourceResponse *>(ptr);
-      rsp->server_->sessions_.erase(rsp);
+      rsp->_eventSource->sessions_.erase(rsp);
       delete rsp; // NOLINT(cppcoreguidelines-owning-memory)
     }
 
@@ -431,13 +438,13 @@ namespace esphome
 
       // Sending chunked content prelude
       auto cs = str_snprintf("%x" CRLF_STR, 4 * sizeof(ev.size()) + CRLF_LEN, ev.size());
-      httpd_socket_send(this->hd_, this->fd_, cs.c_str(), cs.size(), 0);
+      httpd_socket_send(this->_httpd_handle, this->fd_, cs.c_str(), cs.size(), 0);
 
       // Sendiing content chunk
-      httpd_socket_send(this->hd_, this->fd_, ev.c_str(), ev.size(), 0);
+      httpd_socket_send(this->_httpd_handle, this->fd_, ev.c_str(), ev.size(), 0);
 
       // Indicate end of chunk
-      httpd_socket_send(this->hd_, this->fd_, CRLF_STR, CRLF_LEN, 0);
+      httpd_socket_send(this->_httpd_handle, this->fd_, CRLF_STR, CRLF_LEN, 0);
     }
 
   } // namespace web_server_idf

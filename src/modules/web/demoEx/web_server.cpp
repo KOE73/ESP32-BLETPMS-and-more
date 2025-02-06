@@ -78,8 +78,9 @@ namespace esphome
       return match;
     }
 
-    WebServer::WebServer(web_server_base::WebServerBase *base)
-        : base_(base), entities_iterator_(ListEntitiesIterator(this))
+    WebServerControllerComponent::WebServerControllerComponent(web_server_base::WebServerBaseComponent *base)
+        : _webServerBaseComponent(base),
+          entities_iterator_(ListEntitiesIterator(this))
     {
 #ifdef USE_ESP32
       to_schedule_lock_ = xSemaphoreCreateMutex();
@@ -93,7 +94,7 @@ namespace esphome
     void WebServer::set_js_include(const char *js_include) { this->js_include_ = js_include; }
 #endif
 
-    std::string WebServer::get_config_json()
+    std::string WebServerControllerComponent::get_config_json()
     {
       return json::build_json([this](JsonObject root)
                               {
@@ -104,14 +105,14 @@ namespace esphome
     root["lang"] = "en"; });
     }
 
-    void WebServer::setup()
+    void WebServerControllerComponent::setup()
     {
       // ESP_LOGCONFIG(TAG, "Setting up web server...");
       ESP_LOGI(TAG, "Setting up web server...");
 
       // this->setup_controller(this->include_internal_);
 
-      this->base_->init();
+      this->_webServerBaseComponent->init();
 
       this->events_.onConnect([this](AsyncEventSourceClient *client)
                               {
@@ -137,17 +138,19 @@ namespace esphome
             { this->events_.send(message, "log", millis()); });
       }
 #endif
-      this->base_->add_handler(&this->events_);
-      this->base_->add_handler(this);
+      this->_webServerBaseComponent->add_handler(&this->events_);
+
+      // перенес в WebServerControllerComponent
+      this->_webServerBaseComponent->add_handler(&_main_handler);
 
       if (this->allow_ota_)
-        this->base_->add_ota_handler();
+        this->_webServerBaseComponent->add_ota_handler();
 
       // this->set_interval(10000, [this]()
       //                    { this->events_.send("", "ping", 1000 /*millis()*/, 30000); });
     }
 
-    void WebServer::loop()
+    void WebServerControllerComponent::loop()
     {
 #ifdef USE_ESP32
       if (xSemaphoreTake(this->to_schedule_lock_, 0L))
@@ -171,34 +174,17 @@ namespace esphome
       // this->entities_iterator_.advance();
     }
 
-    void WebServer::dump_config()
+    void WebServerControllerComponent::dump_config()
     {
       // ESP_LOGCONFIG(TAG, "Web Server:");
-      // ESP_LOGCONFIG(TAG, "  Address: %s:%u", network::get_use_address().c_str(), this->base_->get_port());
+      // ESP_LOGCONFIG(TAG, "  Address: %s:%u", network::get_use_address().c_str(), this->_webServerBaseComponent->get_port());
     }
 
-    float WebServer::get_setup_priority() const
+    float WebServerControllerComponent::get_setup_priority() const
     {
       // return setup_priority::WIFI - 1.0f;
       return 5.0f;
     }
-
-#ifdef USE_WEBSERVER_LOCAL
-    void WebServer::handle_index_request(AsyncWebServerRequest *request)
-    {
-      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", INDEX_GZ, sizeof(INDEX_GZ));
-      response->addHeader("Content-Encoding", "gzip");
-      request->send(response);
-    }
-#elif USE_WEBSERVER_VERSION >= 2
-    void WebServer::handle_index_request(AsyncWebServerRequest *request)
-    {
-      AsyncWebServerResponse *response =
-          request->beginResponse_P(200, "text/html", ESPHOME_WEBSERVER_INDEX_HTML, ESPHOME_WEBSERVER_INDEX_HTML_SIZE);
-      // No gzip header here because the HTML file is so small
-      request->send(response);
-    }
-#endif
 
 #ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
     void WebServer::handle_pna_cors_request(AsyncWebServerRequest *request)
@@ -357,6 +343,7 @@ namespace esphome
         return;
       this->events_.send(this->switch_json(obj, state, DETAIL_STATE).c_str(), "state");
     }
+
     void WebServer::handle_switch_request(AsyncWebServerRequest *request, const UrlMatch &match)
     {
       for (switch_::Switch *obj : App.get_switches())
@@ -466,7 +453,6 @@ namespace esphome
     } });
     }
 #endif
-
 
 #ifdef USE_EVENT
     void WebServer::on_event(event::Event *obj, const std::string &event_type)
@@ -594,8 +580,33 @@ namespace esphome
     }
 #endif
 
-    bool WebServer::canHandle(AsyncWebServerRequest *request)
+    // void WebServer::add_entity_config(EntityBase *entity, float weight, uint64_t group)
+    //{
+    //     this->sorting_entitys_[entity] = SortingComponents{weight, group};
+    // }
+    //
+    // void WebServer::add_sorting_group(uint64_t group_id, const std::string &group_name, float weight)
+    //{
+    //    this->sorting_groups_[group_id] = SortingGroup{group_name, weight};
+    //}
+
+    void WebServerControllerComponent::schedule_(std::function<void()> &&f)
     {
+#ifdef USE_ESP32
+      xSemaphoreTake(this->to_schedule_lock_, portMAX_DELAY);
+      to_schedule_.push_back(std::move(f));
+      xSemaphoreGive(this->to_schedule_lock_);
+#else
+      this->defer(std::move(f));
+#endif
+    }
+
+#pragma region AsyncWebHandler_WebServer
+
+    bool AsyncWebHandler_WebServer::canHandle(AsyncWebServerRequest *request)
+    {
+      ESP_LOGI(TAG, "AsyncWebHandler_WebServer::canHandle %s", request->url().c_str());
+
       if (request->url() == "/")
         return true;
 
@@ -640,9 +651,6 @@ namespace esphome
         return true;
 #endif
 
-
-
-
 #ifdef USE_EVENT
       if (request->method() == HTTP_GET && match.domain == "event")
         return true;
@@ -655,8 +663,11 @@ namespace esphome
 
       return false;
     }
-    void WebServer::handleRequest(AsyncWebServerRequest *request)
+
+    void AsyncWebHandler_WebServer::handleRequest(AsyncWebServerRequest *request)
     {
+      ESP_LOGI(TAG, "AsyncWebHandler_WebServer::handleRequest %s", request->url().c_str());
+
       if (request->url() == "/")
       {
         this->handle_index_request(request);
@@ -712,9 +723,6 @@ namespace esphome
       }
 #endif
 
-
-
-
 #ifdef USE_UPDATE
       if (match.domain == "update")
       {
@@ -724,31 +732,29 @@ namespace esphome
 #endif
     }
 
-    bool WebServer::isRequestHandlerTrivial()
+    bool AsyncWebHandler_WebServer::isRequestHandlerTrivial()
     {
       return false;
     }
 
-    // void WebServer::add_entity_config(EntityBase *entity, float weight, uint64_t group)
-    //{
-    //     this->sorting_entitys_[entity] = SortingComponents{weight, group};
-    // }
-    //
-    // void WebServer::add_sorting_group(uint64_t group_id, const std::string &group_name, float weight)
-    //{
-    //    this->sorting_groups_[group_id] = SortingGroup{group_name, weight};
-    //}
-
-    void WebServer::schedule_(std::function<void()> &&f)
+#ifdef USE_WEBSERVER_LOCAL
+    void AsyncWebHandler_WebServer::handle_index_request(AsyncWebServerRequest *request)
     {
-#ifdef USE_ESP32
-      xSemaphoreTake(this->to_schedule_lock_, portMAX_DELAY);
-      to_schedule_.push_back(std::move(f));
-      xSemaphoreGive(this->to_schedule_lock_);
-#else
-      this->defer(std::move(f));
-#endif
+      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", INDEX_GZ, sizeof(INDEX_GZ));
+      response->addHeader("Content-Encoding", "gzip");
+      request->send(response);
     }
+#elif USE_WEBSERVER_VERSION >= 2
+    void AsyncWebHandler_WebServer::handle_index_request(AsyncWebServerRequest *request)
+    {
+      AsyncWebServerResponse *response =
+          request->beginResponse_P(200, "text/html", ESPHOME_WEBSERVER_INDEX_HTML, ESPHOME_WEBSERVER_INDEX_HTML_SIZE);
+      // No gzip header here because the HTML file is so small
+      request->send(response);
+    }
+#endif
+
+#pragma endregion
 
   } // namespace web_server
 } // namespace esphome

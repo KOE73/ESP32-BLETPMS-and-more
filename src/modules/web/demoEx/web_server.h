@@ -15,7 +15,7 @@
 #include <deque>
 
 #if USE_WEBSERVER_VERSION >= 2
-extern const uint8_t ESPHOME_WEBSERVER_INDEX_HTML[] PROGMEM;
+extern const uint8_t ESPHOME_WEBSERVER_INDEX_HTML[] /*PROGMEM*/;
 extern const size_t ESPHOME_WEBSERVER_INDEX_HTML_SIZE;
 #endif
 
@@ -62,6 +62,22 @@ namespace esphome
       DETAIL_STATE
     };
 
+    class AsyncWebHandler_WebServer : public AsyncWebHandler // public Controller, public Component,
+    {
+            /// Override the web handler's canHandle method.
+      bool canHandle(AsyncWebServerRequest *request) override;
+      /// Override the web handler's handleRequest method.
+      void handleRequest(AsyncWebServerRequest *request) override;
+      /// This web handle is not trivial.
+      bool isRequestHandlerTrivial() override; 
+
+
+
+           /// Handle an index request under '/'.
+      void handle_index_request(AsyncWebServerRequest *request);
+
+    };
+
     /** This class allows users to create a web server with their ESP nodes.
      *
      * Behind the scenes it's using AsyncWebServer to set up the server. It exposes 3 things:
@@ -71,10 +87,59 @@ namespace esphome
      * under the '/light/...', '/sensor/...', ... URLs. A full documentation for this API
      * can be found under https://esphome.io/web-api/index.html.
      */
-    class WebServer :public AsyncWebHandler // public Controller, public Component, 
+    class WebServerControllerComponent //: public AsyncWebHandler // public Controller, public Component,
     {
+
+    protected:
+      void schedule_(std::function<void()> &&f);
+      friend ListEntitiesIterator;
+      web_server_base::WebServerBaseComponent *_webServerBaseComponent;
+
+      AsyncWebHandlerEventSource events_{"/events"};
+
+// Пока временно тут
+      AsyncWebHandler_WebServer _main_handler;
+
+      ListEntitiesIterator entities_iterator_;
+      // std::map<EntityBase *, SortingComponents> sorting_entitys_;
+      // std::map<uint64_t, SortingGroup> sorting_groups_;
+
+#if USE_WEBSERVER_VERSION == 1
+      const char *css_url_{nullptr};
+      const char *js_url_{nullptr};
+#endif
+#ifdef USE_WEBSERVER_CSS_INCLUDE
+      const char *css_include_{nullptr};
+#endif
+#ifdef USE_WEBSERVER_JS_INCLUDE
+      const char *js_include_{nullptr};
+#endif
+      bool allow_ota_{true};
+      bool expose_log_{true};
+#ifdef USE_ESP32
+      std::deque<std::function<void()>> to_schedule_;
+      SemaphoreHandle_t to_schedule_lock_;
+#endif
+
     public:
-      WebServer(web_server_base::WebServerBase *base);
+      WebServerControllerComponent(web_server_base::WebServerBaseComponent *base);
+
+
+
+      // ========== INTERNAL METHODS ==========
+      // (In most use cases you won't need these)
+      /// Setup the internal web server and register handlers.
+      // Пинает основного владельца сервера и тот запускает сервер
+      // Присоединяет свои базовые обработчики, которые отвечают за страницу и ота и прочие обязатеьльности
+      // Также обработчик от AsyncWebHandler_WebServer, который раньше входил с состав этого класса
+      // Будет переосмысливаться
+      void setup() ;/*override*/
+
+
+      void loop() ;/*override*/
+
+      void dump_config() /*override*/;
+
 
 #if USE_WEBSERVER_VERSION == 1
       /** Set the URL to the CSS <link> that's sent to each client. Defaults to
@@ -108,37 +173,25 @@ namespace esphome
       void set_js_include(const char *js_include);
 #endif
 
-      /** Determine whether internal components should be displayed on the web server.
-       * Defaults to false.
-       *
-       * @param include_internal Whether internal components should be displayed.
-       */
-      void set_include_internal(bool include_internal) { include_internal_ = include_internal; }
+
+
       /** Set whether or not the webserver should expose the OTA form and handler.
        *
        * @param allow_ota.
        */
       void set_allow_ota(bool allow_ota) { this->allow_ota_ = allow_ota; }
+
       /** Set whether or not the webserver should expose the Log.
        *
        * @param expose_log.
        */
       void set_expose_log(bool expose_log) { this->expose_log_ = expose_log; }
 
-      // ========== INTERNAL METHODS ==========
-      // (In most use cases you won't need these)
-      /// Setup the internal web server and register handlers.
-      void setup() /*override*/;
-      void loop() /*override*/;
-
-      void dump_config() /*override*/;
 
       /// MQTT setup priority.
       float get_setup_priority() const /*override*/;
 
-      /// Handle an index request under '/'.
-      void handle_index_request(AsyncWebServerRequest *request);
-
+ 
       /// Return the webserver configuration as JSON.
       std::string get_config_json();
 
@@ -158,7 +211,7 @@ namespace esphome
 #endif
 
 #ifdef USE_SENSOR
-      void on_sensor_update(sensor::Sensor *obj, float state) override;
+      void on_sensor_update(sensor::Sensor *obj, float state) /*override*/;
       /// Handle a sensor request under '/sensor/<id>'.
       void handle_sensor_request(AsyncWebServerRequest *request, const UrlMatch &match);
 
@@ -167,7 +220,7 @@ namespace esphome
 #endif
 
 #ifdef USE_SWITCH
-      void on_switch_update(switch_::Switch *obj, bool state) override;
+      void on_switch_update(switch_::Switch *obj, bool state) /*override*/;
 
       /// Handle a switch request under '/switch/<id>/</turn_on/turn_off/toggle>'.
       void handle_switch_request(AsyncWebServerRequest *request, const UrlMatch &match);
@@ -184,10 +237,8 @@ namespace esphome
       std::string button_json(button::Button *obj, JsonDetail start_config);
 #endif
 
-
-
 #ifdef USE_EVENT
-      void on_event(event::Event *obj, const std::string &event_type) override;
+      void on_event(event::Event *obj, const std::string &event_type) /*override*/;
 
       /// Handle a event request under '/event<id>'.
       void handle_event_request(AsyncWebServerRequest *request, const UrlMatch &match);
@@ -197,7 +248,7 @@ namespace esphome
 #endif
 
 #ifdef USE_UPDATE
-      void on_update(update::UpdateEntity *obj) override;
+      void on_update(update::UpdateEntity *obj) /*override*/;
 
       /// Handle a update request under '/update/<id>'.
       void handle_update_request(AsyncWebServerRequest *request, const UrlMatch &match);
@@ -206,42 +257,10 @@ namespace esphome
       std::string update_json(update::UpdateEntity *obj, JsonDetail start_config);
 #endif
 
-      /// Override the web handler's canHandle method.
-      bool canHandle(AsyncWebServerRequest *request) override;
-      /// Override the web handler's handleRequest method.
-      void handleRequest(AsyncWebServerRequest *request) override;
-      /// This web handle is not trivial.
-      bool isRequestHandlerTrivial() override; // NOLINT(readability-identifier-naming)
 
-      //void add_entity_config(EntityBase *entity, float weight, uint64_t group);
-      //void add_sorting_group(uint64_t group_id, const std::string &group_name, float weight);
 
-    protected:
-      void schedule_(std::function<void()> &&f);
-      friend ListEntitiesIterator;
-      web_server_base::WebServerBase *base_;
-      AsyncEventSource events_{"/events"};
-      ListEntitiesIterator entities_iterator_;
-      //std::map<EntityBase *, SortingComponents> sorting_entitys_;
-      //std::map<uint64_t, SortingGroup> sorting_groups_;
-
-#if USE_WEBSERVER_VERSION == 1
-      const char *css_url_{nullptr};
-      const char *js_url_{nullptr};
-#endif
-#ifdef USE_WEBSERVER_CSS_INCLUDE
-      const char *css_include_{nullptr};
-#endif
-#ifdef USE_WEBSERVER_JS_INCLUDE
-      const char *js_include_{nullptr};
-#endif
-      bool include_internal_{false};
-      bool allow_ota_{true};
-      bool expose_log_{true};
-#ifdef USE_ESP32
-      std::deque<std::function<void()>> to_schedule_;
-      SemaphoreHandle_t to_schedule_lock_;
-#endif
+      // void add_entity_config(EntityBase *entity, float weight, uint64_t group);
+      // void add_sorting_group(uint64_t group_id, const std::string &group_name, float weight);
     };
 
   } // namespace web_server

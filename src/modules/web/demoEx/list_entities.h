@@ -9,12 +9,12 @@ namespace esphome
   namespace web_server
   {
 
-    class WebServer;
+    class WebServerControllerComponent;
 
     class ListEntitiesIterator //: public ComponentIterator
     {
     public:
-      ListEntitiesIterator(WebServer *web_server);
+      ListEntitiesIterator(WebServerControllerComponent *web_server);
 #ifdef USE_BINARY_SENSOR
       bool on_binary_sensor(binary_sensor::BinarySensor *binary_sensor) override;
 #endif
@@ -77,7 +77,7 @@ namespace esphome
 #endif
 
     protected:
-      WebServer *web_server_;
+      WebServerControllerComponent *web_server_;
     };
 
   } // namespace web_server

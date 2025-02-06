@@ -49,14 +49,14 @@ WebServer::UriHandlerBase index_(webServer,"/index",index_html_start);
 WebServer::UriHandlerBase css_(webServer,"/css.css",css_css_start, css_css_length);
 
 #include "demoEx/web_server_idf.h"
-AsyncWebServer aServer(81);
+IDFWebServer aServer(80);
 
 //  AsyncWebServer server(80);
 //  // Создание WebSocket обработчика
 //  AsyncWebSocket ws("/ws");
 //  // Отправка SSE-сообщений каждую секунду
 //  unsigned long lastMillis = 0;
-//  AsyncEventSource events("/events");
+//  AsyncWebHandlerEventSource events("/events");
 
 #pragma region Events
 
@@ -228,14 +228,14 @@ esp_err_t start_web_server(void)
     // webServer = new WebServer::WebServer (true);
     // x = new WebServer::UriHandlerBase(*webServer);
     
-    ESP_LOGI(TAG_WEB, "WebServer Starting");
-
-    if (webServer.Start() != ESP_OK)
-    {
-        ESP_LOGI(TAG_WEB, "WebServer not started");
-        return ESP_FAIL;
-    }
-    ESP_LOGI(TAG_WEB, "WebServer Started");
+    //ESP_LOGI(TAG_WEB, "WebServer Starting");
+//
+    //if (webServer.Start() != ESP_OK)
+    //{
+    //    ESP_LOGI(TAG_WEB, "WebServer not started");
+    //    return ESP_FAIL;
+    //}
+    //ESP_LOGI(TAG_WEB, "WebServer Started");
 
     aServer.begin();
 

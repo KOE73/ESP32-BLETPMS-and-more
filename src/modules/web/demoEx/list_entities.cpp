@@ -9,7 +9,7 @@
 namespace esphome {
 namespace web_server {
 
-ListEntitiesIterator::ListEntitiesIterator(WebServer *web_server) : web_server_(web_server) {}
+ListEntitiesIterator::ListEntitiesIterator(WebServerControllerComponent *web_server) : web_server_(web_server) {}
 
 #ifdef USE_BINARY_SENSOR
 bool ListEntitiesIterator::on_binary_sensor(binary_sensor::BinarySensor *binary_sensor) {
