@@ -9,6 +9,8 @@
 #include "esp_log.h"
 // #include "esphome/core/util.h"
 
+#include "web_events.h"
+
 #ifdef USE_ARDUINO
 #include "StreamString.h"
 #endif
@@ -45,54 +47,11 @@ namespace esphome
     static const char *const HEADER_CORS_ALLOW_PNA = "Access-Control-Allow-Private-Network";
 #endif
 
-    /// @brief Разбор проинятого url. В перспективе переделать в класс?
-    /// @param url
-    /// @param only_domain
-    /// @return Структура с данными, что там в строке
-    UrlMatch match_url(const std::string &url, bool only_domain = false)
-    {
-      UrlMatch match;
-      match.valid = false;
-      size_t domain_end = url.find('/', 1);
-      if (domain_end == std::string::npos)
-        return match;
-      match.domain = url.substr(1, domain_end - 1);
-      if (only_domain)
-      {
-        match.valid = true;
-        return match;
-      }
-      if (url.length() == domain_end - 1)
-        return match;
-      size_t id_begin = domain_end + 1;
-      size_t id_end = url.find('/', id_begin);
-      match.valid = true;
-      if (id_end == std::string::npos)
-      {
-        match.id = url.substr(id_begin, url.length() - id_begin);
-        return match;
-      }
-      match.id = url.substr(id_begin, id_end - id_begin);
-      size_t method_begin = id_end + 1;
-      match.method = url.substr(method_begin, url.length() - method_begin);
-      return match;
-    }
-
     WebServerControllerComponent::WebServerControllerComponent(web_server_base::WebServerBaseComponent *base)
-        : _webServerBaseComponent(base),
-          entities_iterator_(ListEntitiesIterator(this))
+        : _webServerBaseComponent(base)
     {
-#ifdef USE_ESP32
       to_schedule_lock_ = xSemaphoreCreateMutex();
-#endif
     }
-
-#ifdef USE_WEBSERVER_CSS_INCLUDE
-    void WebServer::set_css_include(const char *css_include) { this->css_include_ = css_include; }
-#endif
-#ifdef USE_WEBSERVER_JS_INCLUDE
-    void WebServer::set_js_include(const char *js_include) { this->js_include_ = js_include; }
-#endif
 
     std::string WebServerControllerComponent::get_config_json()
     {
@@ -180,12 +139,6 @@ namespace esphome
       // ESP_LOGCONFIG(TAG, "  Address: %s:%u", network::get_use_address().c_str(), this->_webServerBaseComponent->get_port());
     }
 
-    float WebServerControllerComponent::get_setup_priority() const
-    {
-      // return setup_priority::WIFI - 1.0f;
-      return 5.0f;
-    }
-
 #ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
     void WebServer::handle_pna_cors_request(AsyncWebServerRequest *request)
     {
@@ -244,6 +197,7 @@ namespace esphome
         return;
       this->events_.send(this->sensor_json(obj, state, DETAIL_STATE).c_str(), "state");
     }
+
     void WebServer::handle_sensor_request(AsyncWebServerRequest *request, const UrlMatch &match)
     {
       for (sensor::Sensor *obj : App.get_sensors())
@@ -265,29 +219,30 @@ namespace esphome
       }
       request->send(404);
     }
+
     std::string WebServer::sensor_json(sensor::Sensor *obj, float value, JsonDetail start_config)
     {
       return json::build_json([this, obj, value, start_config](JsonObject root)
                               {
-    std::string state;
-    if (std::isnan(value)) {
-      state = "NA";
-    } else {
-      state = value_accuracy_to_string(value, obj->get_accuracy_decimals());
-      if (!obj->get_unit_of_measurement().empty())
-        state += " " + obj->get_unit_of_measurement();
-    }
-    set_json_icon_state_value(root, obj, "sensor-" + obj->get_object_id(), state, value, start_config);
-    if (start_config == DETAIL_ALL) {
-      if (this->sorting_entitys_.find(obj) != this->sorting_entitys_.end()) {
-        root["sorting_weight"] = this->sorting_entitys_[obj].weight;
-        if (this->sorting_groups_.find(this->sorting_entitys_[obj].group_id) != this->sorting_groups_.end()) {
-          root["sorting_group"] = this->sorting_groups_[this->sorting_entitys_[obj].group_id].name;
+        std::string state;
+        if (std::isnan(value)) {
+          state = "NA";
+        } else {
+          state = value_accuracy_to_string(value, obj->get_accuracy_decimals());
+          if (!obj->get_unit_of_measurement().empty())
+            state += " " + obj->get_unit_of_measurement();
         }
-      }
-      if (!obj->get_unit_of_measurement().empty())
-        root["uom"] = obj->get_unit_of_measurement();
-    } });
+        set_json_icon_state_value(root, obj, "sensor-" + obj->get_object_id(), state, value, start_config);
+        if (start_config == DETAIL_ALL) {
+          if (this->sorting_entitys_.find(obj) != this->sorting_entitys_.end()) {
+            root["sorting_weight"] = this->sorting_entitys_[obj].weight;
+            if (this->sorting_groups_.find(this->sorting_entitys_[obj].group_id) != this->sorting_groups_.end()) {
+              root["sorting_group"] = this->sorting_groups_[this->sorting_entitys_[obj].group_id].name;
+            }
+          }
+          if (!obj->get_unit_of_measurement().empty())
+            root["uom"] = obj->get_unit_of_measurement();
+        } });
     }
 #endif
 
@@ -600,161 +555,6 @@ namespace esphome
       this->defer(std::move(f));
 #endif
     }
-
-#pragma region AsyncWebHandler_WebServer
-
-    bool AsyncWebHandler_WebServer::canHandle(AsyncWebServerRequest *request)
-    {
-      ESP_LOGI(TAG, "AsyncWebHandler_WebServer::canHandle %s", request->url().c_str());
-
-      if (request->url() == "/")
-        return true;
-
-#ifdef USE_WEBSERVER_CSS_INCLUDE
-      if (request->url() == "/0.css")
-        return true;
-#endif
-
-#ifdef USE_WEBSERVER_JS_INCLUDE
-      if (request->url() == "/0.js")
-        return true;
-#endif
-
-#ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
-      if (request->method() == HTTP_OPTIONS && request->hasHeader(HEADER_CORS_REQ_PNA))
-      {
-#ifdef USE_ARDUINO
-        // Header needs to be added to interesting header list for it to not be
-        // nuked by the time we handle the request later.
-        // Only required in Arduino framework.
-        request->addInterestingHeader(HEADER_CORS_REQ_PNA);
-#endif
-        return true;
-      }
-#endif
-
-      UrlMatch match = match_url(request->url().c_str(), true);
-      if (!match.valid)
-        return false;
-#ifdef USE_SENSOR
-      if (request->method() == HTTP_GET && match.domain == "sensor")
-        return true;
-#endif
-
-#ifdef USE_SWITCH
-      if ((request->method() == HTTP_POST || request->method() == HTTP_GET) && match.domain == "switch")
-        return true;
-#endif
-
-#ifdef USE_BUTTON
-      if ((request->method() == HTTP_POST || request->method() == HTTP_GET) && match.domain == "button")
-        return true;
-#endif
-
-#ifdef USE_EVENT
-      if (request->method() == HTTP_GET && match.domain == "event")
-        return true;
-#endif
-
-#ifdef USE_UPDATE
-      if ((request->method() == HTTP_POST || request->method() == HTTP_GET) && match.domain == "update")
-        return true;
-#endif
-
-      return false;
-    }
-
-    void AsyncWebHandler_WebServer::handleRequest(AsyncWebServerRequest *request)
-    {
-      ESP_LOGI(TAG, "AsyncWebHandler_WebServer::handleRequest %s", request->url().c_str());
-
-      if (request->url() == "/")
-      {
-        this->handle_index_request(request);
-        return;
-      }
-
-#ifdef USE_WEBSERVER_CSS_INCLUDE
-      if (request->url() == "/0.css")
-      {
-        this->handle_css_request(request);
-        return;
-      }
-#endif
-
-#ifdef USE_WEBSERVER_JS_INCLUDE
-      if (request->url() == "/0.js")
-      {
-        this->handle_js_request(request);
-        return;
-      }
-#endif
-
-#ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
-      if (request->method() == HTTP_OPTIONS && request->hasHeader(HEADER_CORS_REQ_PNA))
-      {
-        this->handle_pna_cors_request(request);
-        return;
-      }
-#endif
-
-      UrlMatch match = match_url(request->url().c_str());
-#ifdef USE_SENSOR
-      if (match.domain == "sensor")
-      {
-        this->handle_sensor_request(request, match);
-        return;
-      }
-#endif
-
-#ifdef USE_SWITCH
-      if (match.domain == "switch")
-      {
-        this->handle_switch_request(request, match);
-        return;
-      }
-#endif
-
-#ifdef USE_BUTTON
-      if (match.domain == "button")
-      {
-        this->handle_button_request(request, match);
-        return;
-      }
-#endif
-
-#ifdef USE_UPDATE
-      if (match.domain == "update")
-      {
-        this->handle_update_request(request, match);
-        return;
-      }
-#endif
-    }
-
-    bool AsyncWebHandler_WebServer::isRequestHandlerTrivial()
-    {
-      return false;
-    }
-
-#ifdef USE_WEBSERVER_LOCAL
-    void AsyncWebHandler_WebServer::handle_index_request(AsyncWebServerRequest *request)
-    {
-      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", INDEX_GZ, sizeof(INDEX_GZ));
-      response->addHeader("Content-Encoding", "gzip");
-      request->send(response);
-    }
-#elif USE_WEBSERVER_VERSION >= 2
-    void AsyncWebHandler_WebServer::handle_index_request(AsyncWebServerRequest *request)
-    {
-      AsyncWebServerResponse *response =
-          request->beginResponse_P(200, "text/html", ESPHOME_WEBSERVER_INDEX_HTML, ESPHOME_WEBSERVER_INDEX_HTML_SIZE);
-      // No gzip header here because the HTML file is so small
-      request->send(response);
-    }
-#endif
-
-#pragma endregion
 
   } // namespace web_server
 } // namespace esphome
