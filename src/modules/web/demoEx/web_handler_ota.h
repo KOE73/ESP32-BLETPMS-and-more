@@ -1,9 +1,7 @@
 #pragma once
 
-#define USE_NETWORK
 
 // #include "esphome/core/defines.h"
-#ifdef USE_NETWORK
 #include <memory>
 #include <utility>
 #include <vector>
@@ -16,14 +14,14 @@
 
 namespace esphome
 {
-  namespace web_server_base
+  namespace web_server
   {
 
    
     class OTARequestHandler : public AsyncWebHandler
     {
     public:
-      OTARequestHandler(WebServerBaseComponent *parent) : parent_(parent) {}
+      OTARequestHandler(WebServerContainer *parent) : parent_(parent) {}
       void handleRequest(AsyncWebServerRequest *request) override;
       void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len,
                         bool final) override;
@@ -38,9 +36,8 @@ namespace esphome
     protected:
       uint32_t last_ota_progress_{0};
       uint32_t ota_read_length_{0};
-      WebServerBaseComponent *parent_;
+      WebServerContainer *parent_;
     };
 
-  } // namespace web_server_base
+  } // namespace web_server
 } // namespace esphome
-#endif

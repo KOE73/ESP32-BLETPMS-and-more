@@ -1,18 +1,17 @@
-#include "web_server_base.h"
+#include "web_server_container.h"
 
 #include "web_handler_ota.h"
 
-#ifdef USE_NETWORK
 // #include "esphome/core/log.h"
 // #include "esphome/core/application.h"
 // #include "esphome/core/helpers.h"
 
 namespace esphome
 {
-  namespace web_server_base
+  namespace web_server
   {
 
-    static const char *const TAG = "web_server_base";
+    static const char *const TAG = "web_server";
 
   
     void report_ota_error()
@@ -116,6 +115,5 @@ namespace esphome
 #endif
     }
 
-  } // namespace web_server_base
+  } // namespace web_server
 } // namespace esphome
-#endif

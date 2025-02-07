@@ -1,8 +1,5 @@
 #pragma once
 
-#include "web_server_base.h"
-
-#include "web_handler.h"
 
 #ifdef USE_WEBSERVER
 
@@ -11,6 +8,10 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <deque>
+
+
+//#include "web_server_container.h"
+#include "web_handler.h"
 
 #if USE_WEBSERVER_VERSION >= 2
 extern const uint8_t ESPHOME_WEBSERVER_INDEX_HTML[] /*PROGMEM*/;

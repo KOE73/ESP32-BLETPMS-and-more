@@ -1,9 +1,6 @@
 #pragma once
 
-#define USE_NETWORK
-
 // #include "esphome/core/defines.h"
-#ifdef USE_NETWORK
 #include <memory>
 #include <utility>
 #include <vector>
@@ -17,7 +14,7 @@
 
 namespace esphome
 {
-  namespace web_server_base
+  namespace web_server
   {
 
     class MiddlewareHandler : public AsyncWebHandler
@@ -89,6 +86,5 @@ namespace esphome
     };
 
 
-  } // namespace web_server_base
+  } // namespace web_server
 } // namespace esphome
-#endif

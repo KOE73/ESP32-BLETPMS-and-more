@@ -66,7 +66,7 @@ extern "C" void app_main()
 
     vTaskDelay(200 / portTICK_PERIOD_MS);
 
-    for (int i= 0; i<5;i++)
+    for (int i= 0; i<50;i++)
     {
         printf("\033[03;38;05;222mMain loop running.\033[0m\n");
         ESP_LOGI("XX","XX");

@@ -146,8 +146,12 @@ namespace esphome
     // Метод обработки запросв в мире классов
     esp_err_t IDFWebServer::request_handler_(AsyncWebServerRequest *request) const
     {
+      ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "IDFWebServer::request_handler_. count=%i" LOG_ANSI_COLOR_RESET, handlers_.size());
+
       for (auto *handler : this->handlers_)
       {
+        ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "IDFWebServer::request_handler_. canHandle=%i" LOG_ANSI_COLOR_RESET, (int)handler->canHandle(request));
+
         if (handler->canHandle(request))
         {
           // At now process only basic requests.
@@ -163,8 +167,6 @@ namespace esphome
       }
       return ESP_ERR_NOT_FOUND;
     }
-
-
 
   } // namespace web_server_idf
 } // namespace esphome
