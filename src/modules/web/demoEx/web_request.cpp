@@ -17,7 +17,7 @@ static const char *TAG_WEB2_SERVER = "WEB2_SERVER";
 
 namespace esphome
 {
-  namespace web_server_idf
+  namespace web_server
   {
 
 #ifndef HTTPD_409

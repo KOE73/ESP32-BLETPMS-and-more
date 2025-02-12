@@ -14,7 +14,7 @@
 
 namespace esphome
 {
-  namespace web_server_idf
+  namespace web_server
   {
 
 #define F(string_literal) (string_literal)
@@ -81,4 +81,4 @@ namespace esphome
   } // namespace web_server_idf
 } // namespace esphome
 
-using namespace esphome::web_server_idf; // NOLINT(google-global-names-in-headers)
+using namespace esphome::web_server; // NOLINT(google-global-names-in-headers)

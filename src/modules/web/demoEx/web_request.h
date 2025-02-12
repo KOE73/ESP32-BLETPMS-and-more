@@ -15,7 +15,7 @@
 
 namespace esphome
 {
-  namespace web_server_idf
+  namespace web_server
   {
 
     class AsyncWebParameter
@@ -114,4 +114,4 @@ namespace esphome
   } // namespace web_server_idf
 } // namespace esphome
 
-using namespace esphome::web_server_idf; // NOLINT(google-global-names-in-headers)
+using namespace esphome::web_server; // NOLINT(google-global-names-in-headers)

@@ -10,7 +10,7 @@
 
 namespace esphome
 {
-  namespace web_server_idf
+  namespace web_server
   {
 
     static const char *const TAG = "web_server_idf_utils";

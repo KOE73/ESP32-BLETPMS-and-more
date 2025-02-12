@@ -8,7 +8,7 @@
 
 namespace esphome
 {
-    namespace web_server_idf
+    namespace web_server
     {
 
         bool request_has_header(httpd_req_t *req, const char *name);

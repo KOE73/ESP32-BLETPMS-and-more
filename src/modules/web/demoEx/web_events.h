@@ -14,7 +14,7 @@
 
 namespace esphome
 {
-  namespace web_server_idf
+  namespace web_server
   {
 
 
@@ -35,12 +35,11 @@ namespace esphome
       int fd_{};
     };
 
-    using AsyncEventSourceClient = AsyncEventSourceResponse;
 
     class AsyncWebHandlerEventSource : public AsyncWebHandler
     {
       friend class AsyncEventSourceResponse;
-      using connect_handler_t = std::function<void(AsyncEventSourceClient *)>;
+      using connect_handler_t = std::function<void(AsyncEventSourceResponse *)>;
 
     public:
       AsyncWebHandlerEventSource(std::string url) : url_(std::move(url)) {}
@@ -55,7 +54,7 @@ namespace esphome
 
       void onConnect(connect_handler_t cb) { this->on_connect_ = std::move(cb); }
 
-      void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0);
+      void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0) const;
 
       size_t count() const { return this->sessions_.size(); }
 
@@ -68,4 +67,4 @@ namespace esphome
   } // namespace web_server_idf
 } // namespace esphome
 
-using namespace esphome::web_server_idf; // NOLINT(google-global-names-in-headers)
+using namespace esphome::web_server; // NOLINT(google-global-names-in-headers)

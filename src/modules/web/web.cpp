@@ -45,11 +45,13 @@ extern const int css_css_length;
 
 WebServer::WebServer webServer;
 WebServer::UriHandlerBase x(webServer);
-WebServer::UriHandlerBase index_(webServer,"/index",index_html_start);
-WebServer::UriHandlerBase css_(webServer,"/css.css",css_css_start, css_css_length);
+WebServer::UriHandlerBase index_(webServer, "/index", index_html_start);
+WebServer::UriHandlerBase css_(webServer, "/css.css", css_css_start, css_css_length);
 
 #include "demoEx/web_server_idf.h"
-IDFWebServer aServer(80);
+#include "demoEx/web_server_container.h"
+// IDFWebServer aServer(80);
+WebServerContainer aServer(80);
 
 //  AsyncWebServer server(80);
 //  // Создание WebSocket обработчика
@@ -181,13 +183,11 @@ static esp_err_t hello_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-
 static esp_err_t index_get_handler(httpd_req_t *req)
 {
     httpd_resp_send(req, index_html_start, index_html_length);
     return ESP_OK;
 }
-
 
 static esp_err_t css_get_handler(httpd_req_t *req)
 {
@@ -227,17 +227,43 @@ esp_err_t start_web_server(void)
 
     // webServer = new WebServer::WebServer (true);
     // x = new WebServer::UriHandlerBase(*webServer);
-    
-    //ESP_LOGI(TAG_WEB, "WebServer Starting");
-//
-    //if (webServer.Start() != ESP_OK)
+
+    // ESP_LOGI(TAG_WEB, "WebServer Starting");
+    //
+    // if (webServer.Start() != ESP_OK)
     //{
     //    ESP_LOGI(TAG_WEB, "WebServer not started");
     //    return ESP_FAIL;
     //}
-    //ESP_LOGI(TAG_WEB, "WebServer Started");
+    // ESP_LOGI(TAG_WEB, "WebServer Started");
 
-    aServer.begin();
+    // aServer.begin();
+    aServer.setup();
+
+    //for (int i = 0; i < 50; i++)
+    //{
+    //    printf("to EVENT");
+    //    aServer.getEnents();
+    //    vTaskDelay(pdMS_TO_TICKS(2123));
+    //}
+
+    xTaskCreate(
+        [](void *param)
+        {
+            ESP_LOGI(TAG_WEB, "Task EVENT started!");
+            while (true)
+            {
+                ESP_LOGI(TAG_WEB, "Task EVENT is running...");
+                aServer.getEnents().send("!!!");
+                vTaskDelay(pdMS_TO_TICKS(3000));
+            }
+        },
+        "LambdaTask", // Имя задачи
+        4096,         // Размер стека
+        nullptr,      // Параметры
+        5,            // Приоритет
+        nullptr       // Handle (можно оставить nullptr, если не нужно)
+    );
 
     // register_routes(server);
 

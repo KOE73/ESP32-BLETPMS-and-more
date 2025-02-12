@@ -38,6 +38,7 @@ namespace esphome
 
     void WebServerContainer::add_ota_handler()
     {
+      ESP_LOGI(TAG, "WebServerContainer::add_ota_handler");
 #ifdef USE_ARDUINO
       this->add_handler(new OTARequestHandler(this)); // NOLINT
 #endif
@@ -45,7 +46,11 @@ namespace esphome
 
 #pragma region To refactor
 
-    WebServerContainer::WebServerContainer()
+    WebServerContainer::WebServerContainer() : WebServerContainer(80)
+    {
+    }
+
+    WebServerContainer::WebServerContainer(uint16_t port) : port_(port)
     {
       to_schedule_lock_ = xSemaphoreCreateMutex();
     }
@@ -68,12 +73,14 @@ namespace esphome
 
       // this->setup_controller(this->include_internal_);
 
-      //this->_webServerBaseComponent->init();
+      // this->_webServerBaseComponent->init();
       init();
 
-      this->events_.onConnect([this](AsyncEventSourceClient *client)
+      this->events_.onConnect([this](AsyncEventSourceResponse *client)
                               {
+                                ESP_LOGI(TAG,"Events -> onConnect");
                                 // Configure reconnect timeout and send config
+                                client->send("EVENT");
                                 client->send(this->get_config_json().c_str(), "ping", 1000 /*millis()*/, 30000);
 
                                 // for (auto &group : this->sorting_groups_) {
@@ -95,11 +102,11 @@ namespace esphome
             { this->events_.send(message, "log", millis()); });
       }
 #endif
-      //this->_webServerBaseComponent->add_handler(&this->events_);
+      // this->_webServerBaseComponent->add_handler(&this->events_);
       add_handler(&this->events_);
 
       // перенес в WebServerControllerComponent
-      //this->_webServerBaseComponent->add_handler(&_main_handler);
+      // this->_webServerBaseComponent->add_handler(&_main_handler);
       add_handler(&_main_handler);
 
       if (allow_ota_)

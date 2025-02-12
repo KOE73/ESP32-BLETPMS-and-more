@@ -13,7 +13,7 @@
 
 namespace esphome
 {
-  namespace web_server_idf
+  namespace web_server
   {
 
     class AsyncWebHandler

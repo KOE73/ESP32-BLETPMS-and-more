@@ -18,7 +18,7 @@ static const char *TAG_WEB2_SERVER = "WEB2_SERVER";
 
 namespace esphome
 {
-  namespace web_server_idf
+  namespace web_server
   {
 
 #define CRLF_STR "\r\n"
@@ -42,7 +42,7 @@ namespace esphome
       this->sessions_.insert(rsp);
     }
 
-    void AsyncWebHandlerEventSource::send(const char *message, const char *event, uint32_t id, uint32_t reconnect)
+    void AsyncWebHandlerEventSource::send(const char *message, const char *event, uint32_t id, uint32_t reconnect) const
     {
       for (auto *ses : this->sessions_)
       {
@@ -83,33 +83,36 @@ namespace esphome
 
     void AsyncEventSourceResponse::send(const char *message, const char *event, uint32_t id, uint32_t reconnect)
     {
+      ESP_LOGI(TAG_WEB2_SERVER, "AsyncEventSourceResponse::send 1");
       if (this->fd_ == 0)
       {
         return;
       }
 
+      ESP_LOGI(TAG_WEB2_SERVER, "AsyncEventSourceResponse::send 2");
+
       std::string ev;
 
-      if (reconnect)
-      {
-        ev.append("retry: ", sizeof("retry: ") - 1);
-        ev.append(to_string(reconnect));
-        ev.append(CRLF_STR, CRLF_LEN);
-      }
+      ////if (reconnect)
+      ////{
+      ////  ev.append("retry: ", sizeof("retry: ") - 1);
+      ////  ev.append(to_string(reconnect));
+      ////  ev.append(CRLF_STR, CRLF_LEN);
+      ////}
+      ////
+      ////if (id)
+      ////{
+      ////  ev.append("id: ", sizeof("id: ") - 1);
+      ////  ev.append(to_string(id));
+      ////  ev.append(CRLF_STR, CRLF_LEN);
+      ////}
 
-      if (id)
-      {
-        ev.append("id: ", sizeof("id: ") - 1);
-        ev.append(to_string(id));
-        ev.append(CRLF_STR, CRLF_LEN);
-      }
-
-      if (event && *event)
-      {
-        ev.append("event: ", sizeof("event: ") - 1);
-        ev.append(event);
-        ev.append(CRLF_STR, CRLF_LEN);
-      }
+      // if (event && *event)
+      //{
+      //   ev.append("event: ", sizeof("event: ") - 1);
+      //   ev.append(event);
+      //   ev.append(CRLF_STR, CRLF_LEN);
+      // }
 
       if (message && *message)
       {
@@ -127,13 +130,15 @@ namespace esphome
 
       // Sending chunked content prelude
       auto cs = str_snprintf("%x" CRLF_STR, 4 * sizeof(ev.size()) + CRLF_LEN, ev.size());
-      httpd_socket_send(this->_httpd_handle, this->fd_, cs.c_str(), cs.size(), 0);
+      int a1 = httpd_socket_send(this->_httpd_handle, this->fd_, cs.c_str(), cs.size(), 0);
 
       // Sendiing content chunk
-      httpd_socket_send(this->_httpd_handle, this->fd_, ev.c_str(), ev.size(), 0);
+      int a2 = httpd_socket_send(this->_httpd_handle, this->fd_, ev.c_str(), ev.size(), 0);
 
       // Indicate end of chunk
-      httpd_socket_send(this->_httpd_handle, this->fd_, CRLF_STR, CRLF_LEN, 0);
+      int a3 = httpd_socket_send(this->_httpd_handle, this->fd_, CRLF_STR, CRLF_LEN, 0);
+
+      ESP_LOGI(TAG_WEB2_SERVER, "AsyncEventSourceResponse::send fd=%i    %i %i %i ",this->fd_, a1, a2, a3);
     }
 
   } // namespace web_server_idf

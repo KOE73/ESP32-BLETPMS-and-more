@@ -24,7 +24,7 @@
 // #include "esphome/core/hal.h"
 
 #include "web_server_idf.h"
-//#include "web_handler.h"
+// #include "web_handler.h"
 #include "web_handler_main.h"
 #include "web_events.h"
 #include "web_handler_middleware.h"
@@ -46,7 +46,7 @@ namespace esphome
       friend class OTARequestHandler;
 
       int initialized_{0};
-      uint16_t port_{80};
+      const uint16_t port_{80};
       std::shared_ptr<IDFWebServer> _IDFWebServer{nullptr};
       std::vector<AsyncWebHandler *> handlers_;
       Credentials credentials_;
@@ -55,7 +55,7 @@ namespace esphome
     protected:
       void schedule_(std::function<void()> &&f);
 
-      //web_server::WebServerContainer *_webServerBaseComponent;
+      // web_server::WebServerContainer *_webServerBaseComponent;
 
       AsyncWebHandlerEventSource events_{"/events"};
 
@@ -71,6 +71,9 @@ namespace esphome
 
     public:
       WebServerContainer();
+      WebServerContainer(uint16_t port);
+
+      const AsyncWebHandlerEventSource getEnents() const { return events_; }
 
       // Запуск idf web сервера и присоединение локальных обработчиков
       void init()
@@ -116,9 +119,6 @@ namespace esphome
       void add_handler(AsyncWebHandler *handler);
 
       void add_ota_handler();
-
-      void set_port(uint16_t port) { port_ = port; }
-      uint16_t get_port() const { return port_; }
 
 #pragma region To refactor
 
