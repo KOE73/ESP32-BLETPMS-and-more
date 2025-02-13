@@ -17,8 +17,6 @@ static const char *TAG_EVENT_HANDLER = "EVENT_HANDLER";
 static const char *TAG_RESPONSE = "EVENT_RESPONSE";
 #define LOG_WEB2_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_BLUE, LOG_ANSI_COLOR_BG_CYAN)
 
-namespace esphome
-{
   namespace web_server
   {
 
@@ -169,4 +167,3 @@ namespace esphome
 #pragma endregion
 
   } // namespace web_server_idf
-} // namespace esphome

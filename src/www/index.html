@@ -10,7 +10,7 @@
     <div id="output"></div>
     <script>
         const host = window.location.origin;
-        const eventSource = new EventSource(host+'/logs');
+        const eventSource = new EventSource(host+'/events');
         eventSource.onmessage = (e) => {
             console.log(e.data);
             document.getElementById("output").innerHTML += "<p>" + event.data + "</p>";

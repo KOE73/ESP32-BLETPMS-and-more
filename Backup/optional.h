@@ -281,3 +281,5 @@ namespace esphome
   inline optional<T> make_optional(T const &v) { return optional<T>(v); }
 
 } // namespace esphome
+
+using esphome;

@@ -17,8 +17,7 @@
 static const char *TAG_WEB2_SERVER = "WEB2_SERVER";
 #define LOG_WEB2_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_BLUE, LOG_ANSI_COLOR_BG_CYAN)
 
-namespace esphome
-{
+
   namespace web_server
   {
 
@@ -59,4 +58,3 @@ namespace esphome
     }
 
   } // namespace web_server_idf
-} // namespace esphome

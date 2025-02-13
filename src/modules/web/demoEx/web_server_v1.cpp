@@ -1,4 +1,4 @@
-#include "web_server.h"
+
 //#include "esphome/core/application.h"
 
 #if USE_WEBSERVER_VERSION == 1

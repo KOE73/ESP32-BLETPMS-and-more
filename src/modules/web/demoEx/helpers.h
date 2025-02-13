@@ -1,7 +1,5 @@
 #pragma once
 
-#define USE_ESP_IDF
-
 #include <cmath>
 #include <cstring>
 #include <functional>
@@ -11,7 +9,9 @@
 #include <vector>
 #include <limits>
 
-#include "optional.h"
+#include <optional>
+
+//#include "optional.h"
 
 #ifdef USE_ESP32
 #include <esp_heap_caps.h>
@@ -348,7 +348,7 @@ namespace esphome
 
   /// Parse an unsigned decimal number from a null-terminated string.
   template <typename T, enable_if_t<(std::is_integral<T>::value && std::is_unsigned<T>::value), int> = 0>
-  optional<T> parse_number(const char *str)
+  std::optional<T> parse_number(const char *str)
   {
     char *end = nullptr;
     unsigned long value = ::strtoul(str, &end, 10); // NOLINT(google-runtime-int)
@@ -358,13 +358,13 @@ namespace esphome
   }
   /// Parse an unsigned decimal number.
   template <typename T, enable_if_t<(std::is_integral<T>::value && std::is_unsigned<T>::value), int> = 0>
-  optional<T> parse_number(const std::string &str)
+  std::optional<T> parse_number(const std::string &str)
   {
     return parse_number<T>(str.c_str());
   }
   /// Parse a signed decimal number from a null-terminated string.
   template <typename T, enable_if_t<(std::is_integral<T>::value && std::is_signed<T>::value), int> = 0>
-  optional<T> parse_number(const char *str)
+  std::optional<T> parse_number(const char *str)
   {
     char *end = nullptr;
     signed long value = ::strtol(str, &end, 10); // NOLINT(google-runtime-int)
@@ -374,13 +374,13 @@ namespace esphome
   }
   /// Parse a signed decimal number.
   template <typename T, enable_if_t<(std::is_integral<T>::value && std::is_signed<T>::value), int> = 0>
-  optional<T> parse_number(const std::string &str)
+  std::optional<T> parse_number(const std::string &str)
   {
     return parse_number<T>(str.c_str());
   }
   /// Parse a decimal floating-point number from a null-terminated string.
   template <typename T, enable_if_t<(std::is_same<T, float>::value), int> = 0>
-  optional<T> parse_number(const char *str)
+  std::optional<T> parse_number(const char *str)
   {
     char *end = nullptr;
     float value = ::strtof(str, &end);
@@ -390,7 +390,7 @@ namespace esphome
   }
   /// Parse a decimal floating-point number.
   template <typename T, enable_if_t<(std::is_same<T, float>::value), int> = 0>
-  optional<T> parse_number(const std::string &str)
+  std::optional<T> parse_number(const std::string &str)
   {
     return parse_number<T>(str.c_str());
   }
@@ -435,7 +435,7 @@ namespace esphome
    * @param len Length of \p str (excluding optional null-terminator), is a limit on the number of characters parsed.
    */
   template <typename T, enable_if_t<std::is_unsigned<T>::value, int> = 0>
-  optional<T> parse_hex(const char *str, size_t len)
+  std::optional<T> parse_hex(const char *str, size_t len)
   {
     T val = 0;
     if (len > 2 * sizeof(T) || parse_hex(str, len, reinterpret_cast<uint8_t *>(&val), sizeof(T)) == 0)
@@ -444,13 +444,13 @@ namespace esphome
   }
   /// Parse a hex-encoded null-terminated string (starting with the most significant byte) into an unsigned integer.
   template <typename T, enable_if_t<std::is_unsigned<T>::value, int> = 0>
-  optional<T> parse_hex(const char *str)
+  std::optional<T> parse_hex(const char *str)
   {
     return parse_hex<T>(str, strlen(str));
   }
   /// Parse a hex-encoded null-terminated string (starting with the most significant byte) into an unsigned integer.
   template <typename T, enable_if_t<std::is_unsigned<T>::value, int> = 0>
-  optional<T> parse_hex(const std::string &str)
+  std::optional<T> parse_hex(const std::string &str)
   {
     return parse_hex<T>(str.c_str(), str.length());
   }
@@ -846,3 +846,5 @@ namespace esphome
   ///@}
 
 } // namespace esphome
+
+using namespace esphome;

@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef USE_WEBSERVER
-
 #include <map>
 #include <vector>
 #include <freertos/FreeRTOS.h>
@@ -26,24 +24,20 @@ extern const uint8_t ESPHOME_WEBSERVER_JS_INCLUDE[] PROGMEM;
 extern const size_t ESPHOME_WEBSERVER_JS_INCLUDE_SIZE;
 #endif
 
-namespace esphome
+namespace web_server
 {
-  namespace web_server
+
+  class AsyncWebHandler_WebServer : public AsyncWebHandler // public Controller, public Component,
   {
+    /// Override the web handler's canHandle method.
+    bool canHandle(AsyncWebServerRequest *request) override;
+    /// Override the web handler's handleRequest method.
+    void handleRequest(AsyncWebServerRequest *request) override;
+    /// This web handle is not trivial.
+    bool isRequestHandlerTrivial() override;
 
-    class AsyncWebHandler_WebServer : public AsyncWebHandler // public Controller, public Component,
-    {
-      /// Override the web handler's canHandle method.
-      bool canHandle(AsyncWebServerRequest *request) override;
-      /// Override the web handler's handleRequest method.
-      void handleRequest(AsyncWebServerRequest *request) override;
-      /// This web handle is not trivial.
-      bool isRequestHandlerTrivial() override;
+    /// Handle an index request under '/'.
+    void handle_index_request(AsyncWebServerRequest *request);
+  };
 
-      /// Handle an index request under '/'.
-      void handle_index_request(AsyncWebServerRequest *request);
-    };
-
-  } // namespace web_server
-} // namespace esphome
-#endif // USE_WEBSERVER
+} // namespace web_server

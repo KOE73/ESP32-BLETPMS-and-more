@@ -8,12 +8,10 @@
 #include <string>
 #include <vector>
 
-#include "optional.h"
+//#include "optional.h"
 
 #include "web_handler.h"
 
-namespace esphome
-{
   namespace web_server
   {
 
@@ -71,6 +69,3 @@ namespace esphome
     };
 
   } // namespace web_server_idf
-} // namespace esphome
-
-using namespace esphome::web_server; // NOLINT(google-global-names-in-headers)

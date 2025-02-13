@@ -5,9 +5,12 @@ FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.*)
 
 # This compiles but does not create itself. To create it, use board_build.embed_txtfiles in platformio.ini.
 idf_component_register(SRCS ${app_sources}
-                        EMBED_TXTFILES
-                            "www/index.html"
-                            "www/css.css"
+    EMBED_TXTFILES
+        "www/index.html"
+        "www/css.css"
+    EMBED_FILES
+        "www/index.html.gz"
+        "www/css.css.gz"
 )
 
 #EMBED_TXTFILES
