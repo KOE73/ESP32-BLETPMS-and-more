@@ -1,6 +1,5 @@
 #pragma once
 
-
 #ifdef USE_WEBSERVER
 
 #include <map>
@@ -9,8 +8,7 @@
 #include <freertos/semphr.h>
 #include <deque>
 
-
-//#include "web_server_container.h"
+// #include "web_server_container.h"
 #include "web_handler.h"
 
 #if USE_WEBSERVER_VERSION >= 2
@@ -32,21 +30,18 @@ namespace esphome
 {
   namespace web_server
   {
-   
+
     class AsyncWebHandler_WebServer : public AsyncWebHandler // public Controller, public Component,
     {
-            /// Override the web handler's canHandle method.
+      /// Override the web handler's canHandle method.
       bool canHandle(AsyncWebServerRequest *request) override;
       /// Override the web handler's handleRequest method.
       void handleRequest(AsyncWebServerRequest *request) override;
       /// This web handle is not trivial.
-      bool isRequestHandlerTrivial() override; 
+      bool isRequestHandlerTrivial() override;
 
-
-
-           /// Handle an index request under '/'.
+      /// Handle an index request under '/'.
       void handle_index_request(AsyncWebServerRequest *request);
-
     };
 
   } // namespace web_server

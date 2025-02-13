@@ -35,7 +35,7 @@ namespace esphome
    
     void AsyncWebServerResponse::addHeader(const char *name, const char *value)
     {
-      httpd_resp_set_hdr(*this->req_, name, value);
+      httpd_resp_set_hdr(this->req_->getHttpdReq(), name, value);
     }
 
     void AsyncResponseStream::print(float value) { this->print(to_string(value)); }

@@ -63,6 +63,12 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "*.bak": "cpp"
-    }
+        "*.bak": "cpp",
+        "bitset": "cpp",
+        "regex": "cpp",
+        "list": "cpp"
+    },
+    "editor.minimap.scale": 2,
+    "editor.minimap.showSlider": "always",
+    "editor.minimap.size": "fill"
 }

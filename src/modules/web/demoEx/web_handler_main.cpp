@@ -191,6 +191,7 @@ namespace esphome
       response->addHeader("Content-Encoding", "gzip");
       request->send(response);
     }
+    
 #elif USE_WEBSERVER_VERSION >= 2
     void AsyncWebHandler_WebServer::handle_index_request(AsyncWebServerRequest *request)
     {

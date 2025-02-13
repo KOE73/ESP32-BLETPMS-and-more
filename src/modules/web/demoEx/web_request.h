@@ -32,25 +32,31 @@ namespace esphome
     {
       friend class IDFWebServer;
 
+
     protected:
-      httpd_req_t *req_;
+      httpd_req_t *_httpd_req;
       AsyncWebServerResponse *rsp_{};
       std::map<std::string, AsyncWebParameter *> params_;
       std::string post_query_;
 
-      AsyncWebServerRequest(httpd_req_t *req) : req_(req) {}
-      AsyncWebServerRequest(httpd_req_t *req, std::string post_query) : req_(req), post_query_(std::move(post_query)) {}
+      AsyncWebServerRequest(httpd_req_t *req) : _httpd_req(req) {}
+      AsyncWebServerRequest(httpd_req_t *req, std::string post_query) : _httpd_req(req), post_query_(std::move(post_query)) {}
 
       void init_response_(AsyncWebServerResponse *rsp, int code, const char *content_type);
 
     public:
       ~AsyncWebServerRequest();
 
-      http_method method() const { return static_cast<http_method>(this->req_->method); }
+      http_method method() const { return static_cast<http_method>(this->_httpd_req->method); }
       std::string url() const;
       std::string host() const;
 
-      size_t contentLength() const { return this->req_->content_len; }
+      size_t contentLength() const { return this->_httpd_req->content_len; }
+      httpd_req_t *getHttpdReq() const { return this->_httpd_req; }
+
+      optional<std::string> get_header(const char *name) const;
+
+      bool hasHeader(const char *name) const;
 
       bool authenticate(const char *username, const char *password) const;
 
@@ -95,6 +101,7 @@ namespace esphome
       AsyncWebParameter *getParam(const std::string &name);
 
       bool hasArg(const char *name) { return this->hasParam(name); }
+
       std::string arg(const std::string &name)
       {
         auto *param = this->getParam(name);
@@ -104,11 +111,6 @@ namespace esphome
         }
         return {};
       }
-
-      operator httpd_req_t *() const { return this->req_; }
-      optional<std::string> get_header(const char *name) const;
-
-      bool hasHeader(const char *name) const;
     };
 
   } // namespace web_server_idf

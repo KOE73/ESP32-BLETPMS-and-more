@@ -29,7 +29,6 @@ namespace esphome
 
     static const char *const TAG = "web_server_idf";
 
-
     AsyncWebServerRequest::~AsyncWebServerRequest()
     {
       delete this->rsp_;
@@ -39,28 +38,29 @@ namespace esphome
       }
     }
 
-    bool AsyncWebServerRequest::hasHeader(const char *name) const { return request_has_header(*this, name); }
+    bool AsyncWebServerRequest::hasHeader(const char *name) const { return request_has_header(getHttpdReq(), name); }
 
     optional<std::string> AsyncWebServerRequest::get_header(const char *name) const
     {
-      return request_get_header(*this, name);
+      return request_get_header(getHttpdReq(), name);
     }
 
     std::string AsyncWebServerRequest::url() const
     {
-      auto *str = strchr(this->req_->uri, '?');
+      auto *str = strchr(this->_httpd_req->uri, '?');
       if (str == nullptr)
       {
-        return this->req_->uri;
+        return this->_httpd_req->uri;
       }
-      return std::string(this->req_->uri, str - this->req_->uri);
+      return std::string(this->_httpd_req->uri, str - this->_httpd_req->uri);
     }
 
     std::string AsyncWebServerRequest::host() const { return this->get_header("Host").value(); }
 
+
     void AsyncWebServerRequest::send(AsyncWebServerResponse *response)
     {
-      httpd_resp_send(*this, response->get_content_data(), response->get_content_size());
+      httpd_resp_send(getHttpdReq(), response->get_content_data(), response->get_content_size());
     }
 
     void AsyncWebServerRequest::send(int code, const char *content_type, const char *content)
@@ -68,37 +68,37 @@ namespace esphome
       this->init_response_(nullptr, code, content_type);
       if (content)
       {
-        httpd_resp_send(*this, content, HTTPD_RESP_USE_STRLEN);
+        httpd_resp_send(getHttpdReq(), content, HTTPD_RESP_USE_STRLEN);
       }
       else
       {
-        httpd_resp_send(*this, nullptr, 0);
+        httpd_resp_send(getHttpdReq(), nullptr, 0);
       }
     }
 
     void AsyncWebServerRequest::redirect(const std::string &url)
     {
-      httpd_resp_set_status(*this, "302 Found");
-      httpd_resp_set_hdr(*this, "Location", url.c_str());
-      httpd_resp_send(*this, nullptr, 0);
+      httpd_resp_set_status(getHttpdReq(), "302 Found");
+      httpd_resp_set_hdr(getHttpdReq(), "Location", url.c_str());
+      httpd_resp_send(getHttpdReq(), nullptr, 0);
     }
 
     void AsyncWebServerRequest::init_response_(AsyncWebServerResponse *rsp, int code, const char *content_type)
     {
-      httpd_resp_set_status(*this, code == 200   ? HTTPD_200
+      httpd_resp_set_status(getHttpdReq(), code == 200   ? HTTPD_200
                                    : code == 404 ? HTTPD_404
                                    : code == 409 ? HTTPD_409
                                                  : to_string(code).c_str());
 
       if (content_type && *content_type)
       {
-        httpd_resp_set_type(*this, content_type);
+        httpd_resp_set_type(getHttpdReq(), content_type);
       }
-      httpd_resp_set_hdr(*this, "Accept-Ranges", "none");
+      httpd_resp_set_hdr(getHttpdReq(), "Accept-Ranges", "none");
 
       for (const auto &pair : DefaultHeaders::Instance().headers_)
       {
-        httpd_resp_set_hdr(*this, pair.first.c_str(), pair.second.c_str());
+        httpd_resp_set_hdr(getHttpdReq(), pair.first.c_str(), pair.second.c_str());
       }
 
       delete this->rsp_;
@@ -143,10 +143,10 @@ namespace esphome
 
     void AsyncWebServerRequest::requestAuthentication(const char *realm) const
     {
-      httpd_resp_set_hdr(*this, "Connection", "keep-alive");
+      httpd_resp_set_hdr(getHttpdReq(), "Connection", "keep-alive");
       auto auth_val = str_sprintf("Basic realm=\"%s\"", realm ? realm : "Login Required");
-      httpd_resp_set_hdr(*this, "WWW-Authenticate", auth_val.c_str());
-      httpd_resp_send_err(*this, HTTPD_401_UNAUTHORIZED, nullptr);
+      httpd_resp_set_hdr(getHttpdReq(), "WWW-Authenticate", auth_val.c_str());
+      httpd_resp_send_err(getHttpdReq(), HTTPD_401_UNAUTHORIZED, nullptr);
     }
 
     AsyncWebParameter *AsyncWebServerRequest::getParam(const std::string &name)
@@ -160,7 +160,7 @@ namespace esphome
       optional<std::string> val = query_key_value(this->post_query_, name);
       if (!val.has_value())
       {
-        auto url_query = request_get_url_query(*this);
+        auto url_query = request_get_url_query(getHttpdReq());
         if (url_query.has_value())
         {
           val = query_key_value(url_query.value(), name);
@@ -176,6 +176,5 @@ namespace esphome
       return param;
     }
 
-   
   } // namespace web_server_idf
 } // namespace esphome

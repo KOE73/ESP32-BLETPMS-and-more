@@ -17,32 +17,22 @@ namespace esphome
   namespace web_server
   {
 
-
-    class AsyncWebHandlerEventSource;
-
-    class AsyncEventSourceResponse
-    {
-      friend class AsyncWebHandlerEventSource;
-
-    public:
-      void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0);
-
-    protected:
-      AsyncEventSourceResponse(const AsyncWebServerRequest *request, AsyncWebHandlerEventSource *server);
-      static void destroy(void *p);
-      AsyncWebHandlerEventSource *_eventSource;
-      httpd_handle_t _httpd_handle{};
-      int fd_{};
-    };
-
+    class AsyncEventSourceResponse;
 
     class AsyncWebHandlerEventSource : public AsyncWebHandler
     {
       friend class AsyncEventSourceResponse;
       using connect_handler_t = std::function<void(AsyncEventSourceResponse *)>;
 
+    protected:
+      std::string url_;
+      std::set<AsyncEventSourceResponse *> _event_responses;
+      connect_handler_t on_connect_{};
+
+      SemaphoreHandle_t _sendMutex;
+
     public:
-      AsyncWebHandlerEventSource(std::string url) : url_(std::move(url)) {}
+      AsyncWebHandlerEventSource(std::string url);
       ~AsyncWebHandlerEventSource() override;
 
       bool canHandle(AsyncWebServerRequest *request) override
@@ -54,14 +44,30 @@ namespace esphome
 
       void onConnect(connect_handler_t cb) { this->on_connect_ = std::move(cb); }
 
+      /// @brief Send message to all event sessions
+      /// @param message
+      /// @param event
+      /// @param id
+      /// @param reconnect
       void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0) const;
 
-      size_t count() const { return this->sessions_.size(); }
+      size_t count() const { return this->_event_responses.size(); }
+    };
+
+    class AsyncEventSourceResponse
+    {
+      friend class AsyncWebHandlerEventSource;
 
     protected:
-      std::string url_;
-      std::set<AsyncEventSourceResponse *> sessions_;
-      connect_handler_t on_connect_{};
+      AsyncWebHandlerEventSource *_eventSource;
+      httpd_handle_t _httpd_handle{};
+      int _sockfd{};
+
+      AsyncEventSourceResponse(const AsyncWebServerRequest *request, AsyncWebHandlerEventSource *server);
+      static void destroy(void *p);
+
+    public:
+      void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0);
     };
 
   } // namespace web_server_idf

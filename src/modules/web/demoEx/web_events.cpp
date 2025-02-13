@@ -13,7 +13,8 @@
 #include "web_server_idf.h"
 #include "web_events.h"
 
-static const char *TAG_WEB2_SERVER = "WEB2_SERVER";
+static const char *TAG_EVENT_HANDLER = "EVENT_HANDLER";
+static const char *TAG_RESPONSE = "EVENT_RESPONSE";
 #define LOG_WEB2_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_BLUE, LOG_ANSI_COLOR_BG_CYAN)
 
 namespace esphome
@@ -23,10 +24,18 @@ namespace esphome
 
 #define CRLF_STR "\r\n"
 #define CRLF_LEN (sizeof(CRLF_STR) - 1)
+#pragma region HandlerEventSource
+
+    AsyncWebHandlerEventSource ::AsyncWebHandlerEventSource(std::string url) : url_(std::move(url))
+    {
+      _sendMutex = xSemaphoreCreateMutex();
+    }
 
     AsyncWebHandlerEventSource::~AsyncWebHandlerEventSource()
     {
-      for (auto *ses : this->sessions_)
+      ESP_LOGI(TAG_EVENT_HANDLER, "AsyncWebHandlerEventSource ~!~~~~~~~~~~~~~~~~~~~~~~");
+
+      for (auto *ses : this->_event_responses)
       {
         delete ses; // NOLINT(cppcoreguidelines-owning-memory)
       }
@@ -34,62 +43,78 @@ namespace esphome
 
     void AsyncWebHandlerEventSource::handleRequest(AsyncWebServerRequest *request)
     {
+      // Make new AsyncEventSourceResponse
       auto *rsp = new AsyncEventSourceResponse(request, this); // NOLINT(cppcoreguidelines-owning-memory)
+      // External init, if any be
       if (this->on_connect_)
       {
         this->on_connect_(rsp);
       }
-      this->sessions_.insert(rsp);
+      // Store in sessions
+      this->_event_responses.insert(rsp);
     }
 
     void AsyncWebHandlerEventSource::send(const char *message, const char *event, uint32_t id, uint32_t reconnect) const
     {
-      for (auto *ses : this->sessions_)
+      if (xSemaphoreTake(_sendMutex, portMAX_DELAY))
       {
-        ses->send(message, event, id, reconnect);
+        // ESP_LOGI(TAG_EVENT_HANDLER, "AsyncWebHandlerEventSource::send sessions.count %i", this->_event_responses.size());
+
+        for (auto *ses : this->_event_responses)
+        {
+          ses->send(message, event, id, reconnect);
+        }
+        xSemaphoreGive(_sendMutex);
       }
     }
+
+#pragma endregion
+
+#pragma region AsyncEventSourceResponse
 
     AsyncEventSourceResponse::AsyncEventSourceResponse(const AsyncWebServerRequest *request, AsyncWebHandlerEventSource *server)
         : _eventSource(server)
     {
-      httpd_req_t *req = *request;
+      auto httpd_req = request->getHttpdReq();
 
-      httpd_resp_set_status(req, HTTPD_200);
-      httpd_resp_set_type(req, "text/event-stream");
-      httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
-      httpd_resp_set_hdr(req, "Connection", "keep-alive");
+      ESP_LOGI(TAG_RESPONSE, "AsyncEventSourceResponse constructor start");
+
+      httpd_resp_set_status(httpd_req, HTTPD_200);
+      httpd_resp_set_type(httpd_req, "text/event-stream");
+      httpd_resp_set_hdr(httpd_req, "Cache-Control", "no-cache");
+      httpd_resp_set_hdr(httpd_req, "Connection", "keep-alive");
 
       for (const auto &pair : DefaultHeaders::Instance().headers_)
       {
-        httpd_resp_set_hdr(req, pair.first.c_str(), pair.second.c_str());
+        httpd_resp_set_hdr(httpd_req, pair.first.c_str(), pair.second.c_str());
       }
 
-      httpd_resp_send_chunk(req, CRLF_STR, CRLF_LEN);
+      httpd_resp_send_chunk(httpd_req, CRLF_STR, CRLF_LEN);
 
-      req->sess_ctx = this;
-      req->free_ctx = AsyncEventSourceResponse::destroy;
+      httpd_req->sess_ctx = this;
+      httpd_req->free_ctx = AsyncEventSourceResponse::destroy;
 
-      this->_httpd_handle = req->handle;
-      this->fd_ = httpd_req_to_sockfd(req);
+      this->_httpd_handle = httpd_req->handle;
+      this->_sockfd = httpd_req_to_sockfd(httpd_req);
+
+      ESP_LOGI(TAG_RESPONSE, "AsyncEventSourceResponse constructor end sockfd = %i", _sockfd);
     }
 
     void AsyncEventSourceResponse::destroy(void *ptr)
     {
+      ESP_LOGI(TAG_RESPONSE, "AsyncEventSourceResponse::destroy !!!!!");
+
       auto *rsp = static_cast<AsyncEventSourceResponse *>(ptr);
-      rsp->_eventSource->sessions_.erase(rsp);
+      rsp->_eventSource->_event_responses.erase(rsp);
       delete rsp; // NOLINT(cppcoreguidelines-owning-memory)
     }
 
     void AsyncEventSourceResponse::send(const char *message, const char *event, uint32_t id, uint32_t reconnect)
     {
-      ESP_LOGI(TAG_WEB2_SERVER, "AsyncEventSourceResponse::send 1");
-      if (this->fd_ == 0)
+      if (this->_sockfd == 0)
       {
         return;
       }
-
-      ESP_LOGI(TAG_WEB2_SERVER, "AsyncEventSourceResponse::send 2");
 
       std::string ev;
 
@@ -128,18 +153,20 @@ namespace esphome
 
       ev.append(CRLF_STR, CRLF_LEN);
 
+      // Manual analog httpd_resp_send_chunk(_httpd_handle, ev.c_str(), ev.size());
+
       // Sending chunked content prelude
       auto cs = str_snprintf("%x" CRLF_STR, 4 * sizeof(ev.size()) + CRLF_LEN, ev.size());
-      int a1 = httpd_socket_send(this->_httpd_handle, this->fd_, cs.c_str(), cs.size(), 0);
+      httpd_socket_send(this->_httpd_handle, this->_sockfd, cs.c_str(), cs.size(), 0);
 
       // Sendiing content chunk
-      int a2 = httpd_socket_send(this->_httpd_handle, this->fd_, ev.c_str(), ev.size(), 0);
+      httpd_socket_send(this->_httpd_handle, this->_sockfd, ev.c_str(), ev.size(), 0);
 
       // Indicate end of chunk
-      int a3 = httpd_socket_send(this->_httpd_handle, this->fd_, CRLF_STR, CRLF_LEN, 0);
-
-      ESP_LOGI(TAG_WEB2_SERVER, "AsyncEventSourceResponse::send fd=%i    %i %i %i ",this->fd_, a1, a2, a3);
+      httpd_socket_send(this->_httpd_handle, this->_sockfd, CRLF_STR, CRLF_LEN, 0);
     }
+
+#pragma endregion
 
   } // namespace web_server_idf
 } // namespace esphome

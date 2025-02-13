@@ -72,8 +72,9 @@ namespace esphome
     public:
       WebServerContainer();
       WebServerContainer(uint16_t port);
+      ~WebServerContainer();
 
-      const AsyncWebHandlerEventSource getEnents() const { return events_; }
+      const AsyncWebHandlerEventSource &getEvents() const { return events_; }
 
       // Запуск idf web сервера и присоединение локальных обработчиков
       void init()

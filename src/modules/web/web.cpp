@@ -50,8 +50,11 @@ WebServer::UriHandlerBase css_(webServer, "/css.css", css_css_start, css_css_len
 
 #include "demoEx/web_server_idf.h"
 #include "demoEx/web_server_container.h"
+#include "demoEx/web_handler_1.h"
 // IDFWebServer aServer(80);
 WebServerContainer aServer(80);
+AsyncWebHandler_1 index_h("/index", index_html_start);
+AsyncWebHandler_1 css_h("/css.css", css_css_start, css_css_length);
 
 //  AsyncWebServer server(80);
 //  // Создание WebSocket обработчика
@@ -239,6 +242,8 @@ esp_err_t start_web_server(void)
 
     // aServer.begin();
     aServer.setup();
+    aServer.add_handler(&index_h);
+    aServer.add_handler(&css_h);
 
     //for (int i = 0; i < 50; i++)
     //{
@@ -254,7 +259,7 @@ esp_err_t start_web_server(void)
             while (true)
             {
                 ESP_LOGI(TAG_WEB, "Task EVENT is running...");
-                aServer.getEnents().send("!!!");
+                aServer.getEvents().send("!!!");
                 vTaskDelay(pdMS_TO_TICKS(3000));
             }
         },

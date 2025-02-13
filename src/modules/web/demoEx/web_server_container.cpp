@@ -55,6 +55,11 @@ namespace esphome
       to_schedule_lock_ = xSemaphoreCreateMutex();
     }
 
+    WebServerContainer::~WebServerContainer()
+    {
+      ESP_LOGI(TAG, "WebServerContainer ~!~!~!~!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    }
+
     std::string WebServerContainer::get_config_json()
     {
       return json::build_json([this](JsonObject root)
@@ -76,11 +81,12 @@ namespace esphome
       // this->_webServerBaseComponent->init();
       init();
 
-      this->events_.onConnect([this](AsyncEventSourceResponse *client)
+      // Adding a new session initializer
+      this->events_.onConnect([this /*WebServerContainer*/](AsyncEventSourceResponse *client)
                               {
-                                ESP_LOGI(TAG,"Events -> onConnect");
+                                ESP_LOGI(TAG, "Events -> onConnect");
                                 // Configure reconnect timeout and send config
-                                client->send("EVENT");
+                                client->send("Hello on onConnect");
                                 client->send(this->get_config_json().c_str(), "ping", 1000 /*millis()*/, 30000);
 
                                 // for (auto &group : this->sorting_groups_) {
