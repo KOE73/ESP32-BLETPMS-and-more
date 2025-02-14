@@ -44,6 +44,8 @@ namespace web_server
   {
     ESP_LOGI(TAG, "AsyncWebHandler_1::handleRequest %s", request->url().c_str());
 
+    // "text/css" ....
+    // text/javascript
     if (request->url() == _uri)
     {
       AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", reinterpret_cast<const uint8_t *>(_text), _text_len);

@@ -1,5 +1,8 @@
 
 
+#ifdef USE_WEBSERVER
+
+#include "web_server.h"
 #include "web_handler_main.h"
 
 #include "json_util.h"
@@ -26,14 +29,6 @@
 #include "esphome/components/climate/climate.h"
 #endif
 
-#ifdef USE_WEBSERVER_LOCAL
-#if USE_WEBSERVER_VERSION == 2
-#include "server_index_v2.h"
-#elif USE_WEBSERVER_VERSION == 3
-#include "server_index_v3.h"
-#endif
-#endif
-
 namespace web_server
 {
 
@@ -47,16 +42,6 @@ namespace web_server
 
     if (request->url() == "/")
       return true;
-
-#ifdef USE_WEBSERVER_CSS_INCLUDE
-    if (request->url() == "/0.css")
-      return true;
-#endif
-
-#ifdef USE_WEBSERVER_JS_INCLUDE
-    if (request->url() == "/0.js")
-      return true;
-#endif
 
 #ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
     if (request->method() == HTTP_OPTIONS && request->hasHeader(HEADER_CORS_REQ_PNA))
@@ -106,27 +91,11 @@ namespace web_server
   {
     ESP_LOGI(TAG, "AsyncWebHandler_WebServer::handleRequest %s", request->url().c_str());
 
-    if (request->url() == "/")
-    {
-      this->handle_index_request(request);
-      return;
-    }
-
-#ifdef USE_WEBSERVER_CSS_INCLUDE
-    if (request->url() == "/0.css")
-    {
-      this->handle_css_request(request);
-      return;
-    }
-#endif
-
-#ifdef USE_WEBSERVER_JS_INCLUDE
-    if (request->url() == "/0.js")
-    {
-      this->handle_js_request(request);
-      return;
-    }
-#endif
+    //if (request->url() == "/")
+    //{
+    //  this->handle_index_request(request);
+    //  return;
+    //}
 
 #ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
     if (request->method() == HTTP_OPTIONS && request->hasHeader(HEADER_CORS_REQ_PNA))
@@ -175,25 +144,8 @@ namespace web_server
     return false;
   }
 
-#ifdef USE_WEBSERVER_LOCAL
-
-  void AsyncWebHandler_WebServer::handle_index_request(AsyncWebServerRequest *request)
-  {
-    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", INDEX_GZ, sizeof(INDEX_GZ));
-    response->addHeader("Content-Encoding", "gzip");
-    request->send(response);
-  }
-
-#elif USE_WEBSERVER_VERSION >= 2
-  void AsyncWebHandler_WebServer::handle_index_request(AsyncWebServerRequest *request)
-  {
-    AsyncWebServerResponse *response =
-        request->beginResponse_P(200, "text/html", ESPHOME_WEBSERVER_INDEX_HTML, ESPHOME_WEBSERVER_INDEX_HTML_SIZE);
-    // No gzip header here because the HTML file is so small
-    request->send(response);
-  }
-#endif
-
 #pragma endregion
 
 } // namespace web_server
+
+#endif // USE_WEBSERVER

@@ -11,13 +11,6 @@
 #include "esphome/components/logger/logger.h"
 #endif
 
-#ifdef USE_WEBSERVER_LOCAL
-#if USE_WEBSERVER_VERSION == 2
-#include "server_index_v2.h"
-#elif USE_WEBSERVER_VERSION == 3
-#include "server_index_v3.h"
-#endif
-#endif
 
 // #include "esphome/core/component.h"
 
@@ -140,82 +133,13 @@ namespace web_server
     /// Return the webserver configuration as JSON.
     std::string get_config_json();
 
-#ifdef USE_WEBSERVER_CSS_INCLUDE
-  protected:
-    const char *css_include_{nullptr};
-
-  public:
-    void set_css_include(const char *css_include) { this->css_include_ = css_include; }
-    void set_css_include(const char *css_include);
-    /// Handle included css request under '/0.css'.
-    void handle_css_request(AsyncWebServerRequest *request);
-#endif
-#ifdef USE_WEBSERVER_JS_INCLUDE
-  protected:
-    const char *js_include_{nullptr};
-
-  public:
-    void set_js_include(const char *js_include) { this->js_include_ = js_include; }
-    void set_js_include(const char *js_include);
-    /// Handle included js request under '/0.js'.
-    void handle_js_request(AsyncWebServerRequest *request);
-#endif
 
 #ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
     // Handle Private Network Access CORS OPTIONS request
     void handle_pna_cors_request(AsyncWebServerRequest *request);
 #endif
 
-#pragma region Obsolete Example
 
-#ifdef USE_SENSOR
-    void on_sensor_update(sensor::Sensor *obj, float state) /*override*/;
-    /// Handle a sensor request under '/sensor/<id>'.
-    void handle_sensor_request(AsyncWebServerRequest *request, const UrlMatch &match);
-
-    /// Dump the sensor state with its value as a JSON string.
-    std::string sensor_json(sensor::Sensor *obj, float value, JsonDetail start_config);
-#endif
-
-#ifdef USE_SWITCH
-    void on_switch_update(switch_::Switch *obj, bool state) /*override*/;
-
-    /// Handle a switch request under '/switch/<id>/</turn_on/turn_off/toggle>'.
-    void handle_switch_request(AsyncWebServerRequest *request, const UrlMatch &match);
-
-    /// Dump the switch state with its value as a JSON string.
-    std::string switch_json(switch_::Switch *obj, bool value, JsonDetail start_config);
-#endif
-
-#ifdef USE_BUTTON
-    /// Handle a button request under '/button/<id>/press'.
-    void handle_button_request(AsyncWebServerRequest *request, const UrlMatch &match);
-
-    /// Dump the button details with its value as a JSON string.
-    std::string button_json(button::Button *obj, JsonDetail start_config);
-#endif
-
-#ifdef USE_EVENT
-    void on_event(event::Event *obj, const std::string &event_type) /*override*/;
-
-    /// Handle a event request under '/event<id>'.
-    void handle_event_request(AsyncWebServerRequest *request, const UrlMatch &match);
-
-    /// Dump the event details with its value as a JSON string.
-    std::string event_json(event::Event *obj, const std::string &event_type, JsonDetail start_config);
-#endif
-
-#ifdef USE_UPDATE
-    void on_update(update::UpdateEntity *obj) /*override*/;
-
-    /// Handle a update request under '/update/<id>'.
-    void handle_update_request(AsyncWebServerRequest *request, const UrlMatch &match);
-
-    /// Dump the update state with its value as a JSON string.
-    std::string update_json(update::UpdateEntity *obj, JsonDetail start_config);
-#endif
-
-#pragma endregion
 #pragma endregion
   };
 
