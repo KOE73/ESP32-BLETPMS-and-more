@@ -17,7 +17,7 @@ namespace web_server
 
   static const char *const TAG = "web_server";
 
-  void WebServerContainer::add_handler(AsyncWebHandler *handler)
+  void WebServerContainer::add_handler(HandlerBase *handler)
   {
     // remove all handlers
 

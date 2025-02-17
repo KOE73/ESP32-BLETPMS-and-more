@@ -18,7 +18,7 @@ extern const size_t ESPHOME_WEBSERVER_INDEX_HTML_SIZE;
 namespace web_server
 {
 
-  class AsyncWebHandler_WebServer : public AsyncWebHandler // public Controller, public Component,
+  class AsyncWebHandler_WebServer : public HandlerBase // public Controller, public Component,
   {
     /// Override the web handler's canHandle method.
     bool canHandle(AsyncWebServerRequest *request) override;

@@ -20,17 +20,29 @@ namespace web_server
 
 #pragma region AsyncWebHandler_1
 
-  AsyncWebHandler_1::AsyncWebHandler_1(const char *uri) : AsyncWebHandler_1(uri, "oK") {}
+  HandlerStaticUriText::HandlerStaticUriText(const char *uri)
+      : HandlerStaticUriText(uri, "oK") {}
 
-  AsyncWebHandler_1::AsyncWebHandler_1(const char *uri, const char *text) : AsyncWebHandler_1(uri, text, strlen(text)) {}
+  HandlerStaticUriText::HandlerStaticUriText(const char *uri, const char *text)
+      : HandlerStaticUriText(uri, text, strlen(text)) {}
 
-  AsyncWebHandler_1::AsyncWebHandler_1(const char *uri, const char *text, ssize_t buf_len) : _uri(uri) //, _method(HTTP_GET)
+  HandlerStaticUriText::HandlerStaticUriText(const char *uri, const char *text, ssize_t text_len)
+      : HandlerStaticUri(uri), _text(text), _text_len(text_len)
   {
-    _text = text;
-    _text_len = buf_len;
   }
 
-  bool AsyncWebHandler_1::canHandle(AsyncWebServerRequest *request)
+  HandlerStaticUriText::HandlerStaticUriText(IHandlerContainer &handlerContainer, const char *uri)
+      : HandlerStaticUriText(handlerContainer, uri, "oK") {}
+
+  HandlerStaticUriText::HandlerStaticUriText(IHandlerContainer &handlerContainer, const char *uri, const char *text)
+      : HandlerStaticUriText(handlerContainer, uri, text, strlen(text)) {}
+
+  HandlerStaticUriText::HandlerStaticUriText(IHandlerContainer &handlerContainer, const char *uri, const char *text, ssize_t text_len)
+      : HandlerStaticUri(handlerContainer, uri), _text(text), _text_len(text_len)
+  {
+  }
+
+  bool HandlerStaticUriText::canHandle(AsyncWebServerRequest *request)
   {
 
     if (request->url() == _uri)
@@ -42,7 +54,7 @@ namespace web_server
     return false;
   }
 
-  void AsyncWebHandler_1::handleRequest(AsyncWebServerRequest *request)
+  void HandlerStaticUriText::handleRequest(AsyncWebServerRequest *request)
   {
     ESP_LOGI(TAG, "AsyncWebHandler_1::handleRequest %s", request->url().c_str());
 
@@ -61,12 +73,17 @@ namespace web_server
 
 #pragma region AsyncWebHandler_2
 
-  AsyncWebHandler_2::AsyncWebHandler_2(const char *uri, const uint8_t *buf, ssize_t buf_len, bool is_gzip)
-      : _uri(uri), _buf(buf), _buf_len(buf_len), _is_gzip(is_gzip)
+  HandlerStaticUriBin::HandlerStaticUriBin(const char *uri, const uint8_t *buf, ssize_t buf_len, bool is_gzip)
+      : HandlerStaticUri(uri), _buf(buf), _buf_len(buf_len), _is_gzip(is_gzip)
   {
   }
 
-  bool AsyncWebHandler_2::canHandle(AsyncWebServerRequest *request)
+  HandlerStaticUriBin::HandlerStaticUriBin(IHandlerContainer &handlerContainer, const char *uri, const uint8_t *buf, ssize_t buf_len, bool is_gzip)
+      : HandlerStaticUri(handlerContainer,uri), _buf(buf), _buf_len(buf_len), _is_gzip(is_gzip)
+  {
+  }
+
+  bool HandlerStaticUriBin::canHandle(AsyncWebServerRequest *request)
   {
 
     if (request->url() == _uri)
@@ -78,7 +95,7 @@ namespace web_server
     return false;
   }
 
-  void AsyncWebHandler_2::handleRequest(AsyncWebServerRequest *request)
+  void HandlerStaticUriBin::handleRequest(AsyncWebServerRequest *request)
   {
     ESP_LOGI(TAG, "AsyncWebHandler_2::handleRequest %s", request->url().c_str());
 

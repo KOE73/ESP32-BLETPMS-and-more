@@ -58,9 +58,9 @@ using namespace web_server;
 
 // IDFWebServer aServer(80);
 WebServerContainer aServer(80);
-AsyncWebHandler_1 index_h("/index", index_html_start);
-AsyncWebHandler_2 index2_h("/index2", index_html_gz_start, index_html_gz_length, true);
-AsyncWebHandler_1 css_h("/css.css", css_css_start, css_css_length);
+HandlerStaticUriText index_h(aServer,"/index", index_html_start);
+HandlerStaticUriBin index2_h(aServer,"/index2", index_html_gz_start, index_html_gz_length, true);
+HandlerStaticUriText css_h(aServer,"/css.css", css_css_start, css_css_length);
 
 //  AsyncWebServer server(80);
 //  // Создание WebSocket обработчика
@@ -248,9 +248,9 @@ esp_err_t start_web_server(void)
 
     // aServer.begin();
     aServer.setup();
-    aServer.add_handler(&index_h);
-    aServer.add_handler(&index2_h);
-    aServer.add_handler(&css_h);
+    //aServer.add_handler(&index_h);
+    //aServer.add_handler(&index2_h);
+    //aServer.add_handler(&css_h);
 
     // for (int i = 0; i < 50; i++)
     //{
