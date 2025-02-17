@@ -2,3 +2,27 @@ body {
     /*font-size: xxx-large;*/
     background: linear-gradient(45deg, black, transparent);
 }
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.container {
+    display: flex;
+    gap: 5px;
+    padding: 5px;
+    height: 100vh;
+    background-color: #f2e7c7;
+}
+
+.column {
+    flex: 1;
+    padding: 5px;
+    background-color: #889ca8;
+    color: white;
+    text-align: center;
+    /*font-size: 1.2em;*/
+    border-radius: 10px;
+}

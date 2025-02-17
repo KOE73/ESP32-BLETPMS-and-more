@@ -59,7 +59,7 @@ using namespace web_server;
 // IDFWebServer aServer(80);
 WebServerContainer aServer(80);
 AsyncWebHandler_1 index_h("/index", index_html_start);
-AsyncWebHandler_2 index2_h("/index2", index_html_gz_start, index_html_gz_length,true);
+AsyncWebHandler_2 index2_h("/index2", index_html_gz_start, index_html_gz_length, true);
 AsyncWebHandler_1 css_h("/css.css", css_css_start, css_css_length);
 
 //  AsyncWebServer server(80);
@@ -252,23 +252,26 @@ esp_err_t start_web_server(void)
     aServer.add_handler(&index2_h);
     aServer.add_handler(&css_h);
 
-    //for (int i = 0; i < 50; i++)
+    // for (int i = 0; i < 50; i++)
     //{
-    //    printf("to EVENT");
-    //    aServer.getEnents();
-    //    vTaskDelay(pdMS_TO_TICKS(2123));
-    //}
+    //     printf("to EVENT");
+    //     aServer.getEnents();
+    //     vTaskDelay(pdMS_TO_TICKS(2123));
+    // }
 
     xTaskCreate(
         [](void *param)
         {
             ESP_LOGI(TAG_WEB, "Task EVENT started!");
-            int c=0;
+            int c = 0;
             while (true)
             {
                 ESP_LOGI(TAG_WEB, "Task EVENT is running...");
-                aServer.getEvents().send("!!!");
-                aServer.getWS().send("ww");
+                std::string ss = "step: ";
+                ss.append(std::to_string(c));
+
+                aServer.getEvents().send(ss.c_str());
+                aServer.getWS().send(ss.c_str());
                 vTaskDelay(pdMS_TO_TICKS(3000));
                 c++;
             }

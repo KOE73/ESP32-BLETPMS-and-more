@@ -24,6 +24,11 @@ namespace web_server
 #define CRLF_LEN (sizeof(CRLF_STR) - 1)
 #pragma region HandlerEventSource
 
+    typedef struct
+    {
+        int user_id;
+    } transport_data_t;
+
     AsyncWebHandlerWSSource::AsyncWebHandlerWSSource(std::string url) : url_(std::move(url))
     {
         _sendMutex = xSemaphoreCreateMutex();
@@ -67,25 +72,23 @@ namespace web_server
         if (httpd_req->method == HTTP_GET)
         {                                                         // Make new AsyncWSSourceResponse
             auto *rsp = new AsyncWSSourceResponse(request, this); // NOLINT(cppcoreguidelines-owning-memory)
-            httpd_req->user_ctx = (void *)_key;
+            // httpd_req->user_ctx = (void *)_key;
 
             this->_ws_responses.insert(rsp);
 
             ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::handleRequest HTTP_GET");
-            
-             //httpd_ws_get_fd_info(httpd_req);
+
+            // httpd_ws_get_fd_info(httpd_req);
             return;
         }
-        //// External init, if any be
-        // if (this->on_connect_)
-        //{
-        //   this->on_connect_(rsp);
-        // }
-        //  Store in sessions
+        // httpd_sess_set_transport_ctx
+        // httpd_setr
 
-        const char *connection_type = (const char *)httpd_req->user_ctx;
+        auto *rsp = static_cast<AsyncWSSourceResponse *>(httpd_req->sess_ctx);
+        // const char *connection_type = (const char *)httpd_req->user_ctx;
 
-        ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::handleRequest '%s' '%s'", connection_type, _key);
+        // ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::handleRequest '%s' '%s'", connection_type, _key);
+         ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::handleRequest '%p' '%s'", rsp, _key);
 
         // Буфер для входящих данных
         char buf[128];
