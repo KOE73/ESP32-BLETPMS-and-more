@@ -1,24 +1,89 @@
 <html>
-    <meta charset="UTF-8">
-    <title>SSE Client</title>
+<meta charset="UTF-8">
+<title>SSE Client</title>
+
 <head>
     <link rel='stylesheet' href='css.css' type='text/css'>
 </head>
 
 <body>
     It's body! Hello, ESP32 Web Server!
+
+
+    <div id="messages">
+        <h2>Messages:</h2>
+        <ul id="messageList">
+            <!-- Сообщения будут отображаться здесь -->
+        </ul>
+    </div>
+
+    <input type="text" id="input" placeholder="Введите сообщение">
+    <button onclick="sendMessage()">Отправить</button>
+
     <div id="output"></div>
+
     <script>
-        const host = window.location.origin;
-        const eventSource = new EventSource(host+'/events');
-        eventSource.onmessage = (e) => {
-            console.log(e.data);
-            document.getElementById("output").innerHTML += "<p>" + event.data + "</p>";
+        const origin = window.location.origin;
+        const host = window.location.host;
+
+        //const eventSource = new EventSource(origin + '/events');
+        //eventSource.onmessage = (e) => {
+        //    console.log(e.data);
+        //    document.getElementById("output").innerHTML += "<p>" + event.data + "</p>";
+        //};
+
+        //eventSource.onerror = function () {
+        //    console.error("SSE connection lost");
+        //};
+
+        // WS -----------------------------------------
+
+        // Подключение к WebSocket-серверу
+        const socket = new WebSocket('ws://'+host+'/ws'); // Укажите IP вашего WebSocket-сервера
+
+        // Когда WebSocket соединение откроется
+        socket.onopen = function () {
+            console.log('Соединение с сервером установлено');
+            displayMessage('Соединение с сервером установлено');
         };
 
-        eventSource.onerror = function () {
-            console.error("SSE connection lost");
+        // Когда сервер отправит сообщение
+        socket.onmessage = function (event) {
+            console.log('Получено сообщение:', event.data);
+            displayMessage('Получено: ' + event.data);
         };
+
+        // При возникновении ошибки
+        socket.onerror = function (error) {
+            console.error('Ошибка WebSocket:', error);
+            displayMessage('Ошибка WebSocket: ' + error);
+        };
+
+        // При закрытии соединения
+        socket.onclose = function (event) {
+            console.log('Соединение закрыто:', event);
+            displayMessage('Соединение закрыто');
+        };
+
+        // Функция для отправки сообщения
+        function sendMessage() {
+            const message = document.getElementById('input').value;
+            if (message && socket.readyState === WebSocket.OPEN) {
+                socket.send(message);
+                displayMessage('Отправлено: ' + message);
+            } else {
+                alert('WebSocket соединение не установлено или сообщение пустое');
+            }
+            document.getElementById('input').value = ''; // Очистка поля ввода
+        }
+
+        // Функция для отображения сообщений в UI
+        function displayMessage(msg) {
+            const messageList = document.getElementById('messageList');
+            const li = document.createElement('li');
+            li.textContent = msg;
+            messageList.appendChild(li);
+        }
     </script>
 
 </body>

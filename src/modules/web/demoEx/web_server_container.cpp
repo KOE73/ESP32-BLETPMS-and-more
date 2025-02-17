@@ -107,6 +107,8 @@ namespace web_server
     // this->_webServerBaseComponent->add_handler(&this->events_);
     add_handler(&this->events_);
 
+    add_handler(&this->ws_);
+
     // перенес в WebServerControllerComponent
     // this->_webServerBaseComponent->add_handler(&_main_handler);
     add_handler(&_main_handler);
@@ -219,7 +221,5 @@ namespace web_server
     this->defer(std::move(f));
 #endif
   }
-
-
 
 } // namespace web_server

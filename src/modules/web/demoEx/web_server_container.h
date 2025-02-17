@@ -11,7 +11,6 @@
 #include "esphome/components/logger/logger.h"
 #endif
 
-
 // #include "esphome/core/component.h"
 
 // #include "esphome/core/hal.h"
@@ -20,6 +19,7 @@
 // #include "web_handler.h"
 #include "web_handler_main.h"
 #include "web_events.h"
+#include "web_ws.h"
 #include "web_handler_middleware.h"
 
 namespace web_server
@@ -48,7 +48,10 @@ namespace web_server
 
     // web_server::WebServerContainer *_webServerBaseComponent;
 
+    // Why inside? Move it out as a regular handler.
+    // If you want it inside, you can make a virtual initializer
     AsyncWebHandlerEventSource events_{"/events"};
+    AsyncWebHandlerWSSource ws_{"/ws"};
 
     // Пока временно тут
     AsyncWebHandler_WebServer _main_handler;
@@ -66,6 +69,7 @@ namespace web_server
     ~WebServerContainer();
 
     const AsyncWebHandlerEventSource &getEvents() const { return events_; }
+    const AsyncWebHandlerWSSource &getWS() const { return ws_; }
 
     // Запуск idf web сервера и присоединение локальных обработчиков
     void init()
@@ -133,12 +137,10 @@ namespace web_server
     /// Return the webserver configuration as JSON.
     std::string get_config_json();
 
-
 #ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
     // Handle Private Network Access CORS OPTIONS request
     void handle_pna_cors_request(AsyncWebServerRequest *request);
 #endif
-
 
 #pragma endregion
   };

@@ -58,6 +58,9 @@ namespace web_server
           .method = HTTP_GET,
           .handler = IDFWebServer::request_get_handler,
           .user_ctx = this,
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+          .is_websocket = true
+#endif
       };
       httpd_register_uri_handler(this->_httpd_handle, &handler_get);
 

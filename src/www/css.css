@@ -1,3 +1,4 @@
 body {
-    font-size: xxx-large;
+    /*font-size: xxx-large;*/
+    background: linear-gradient(45deg, black, transparent);
 }

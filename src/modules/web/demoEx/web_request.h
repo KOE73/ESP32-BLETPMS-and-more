@@ -51,7 +51,9 @@ namespace web_server
     std::string host() const;
 
     size_t contentLength() const { return this->_httpd_req->content_len; }
+    int geMethod() const { return this->_httpd_req->method; }
     httpd_req_t *getHttpdReq() const { return this->_httpd_req; }
+
 
     // optional<std::string> get_header(const char *name) const;
     std::optional<std::string> get_header(const char *name) const;

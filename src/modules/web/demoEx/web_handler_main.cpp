@@ -38,10 +38,12 @@ namespace web_server
 
   bool AsyncWebHandler_WebServer::canHandle(AsyncWebServerRequest *request)
   {
-    ESP_LOGI(TAG, "AsyncWebHandler_WebServer::canHandle %s", request->url().c_str());
 
     if (request->url() == "/")
+    {
+      ESP_LOGI(TAG, "AsyncWebHandler_WebServer::canHandle %s", request->url().c_str());
       return true;
+    }
 
 #ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
     if (request->method() == HTTP_OPTIONS && request->hasHeader(HEADER_CORS_REQ_PNA))
@@ -91,11 +93,11 @@ namespace web_server
   {
     ESP_LOGI(TAG, "AsyncWebHandler_WebServer::handleRequest %s", request->url().c_str());
 
-    //if (request->url() == "/")
+    // if (request->url() == "/")
     //{
-    //  this->handle_index_request(request);
-    //  return;
-    //}
+    //   this->handle_index_request(request);
+    //   return;
+    // }
 
 #ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
     if (request->method() == HTTP_OPTIONS && request->hasHeader(HEADER_CORS_REQ_PNA))

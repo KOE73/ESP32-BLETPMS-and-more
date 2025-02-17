@@ -263,11 +263,14 @@ esp_err_t start_web_server(void)
         [](void *param)
         {
             ESP_LOGI(TAG_WEB, "Task EVENT started!");
+            int c=0;
             while (true)
             {
                 ESP_LOGI(TAG_WEB, "Task EVENT is running...");
                 aServer.getEvents().send("!!!");
+                aServer.getWS().send("ww");
                 vTaskDelay(pdMS_TO_TICKS(3000));
+                c++;
             }
         },
         "LambdaTask", // Имя задачи

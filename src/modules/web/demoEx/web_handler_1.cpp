@@ -32,10 +32,12 @@ namespace web_server
 
   bool AsyncWebHandler_1::canHandle(AsyncWebServerRequest *request)
   {
-    ESP_LOGI(TAG, "AsyncWebHandler_1::canHandle %s", request->url().c_str());
 
     if (request->url() == _uri)
+    {
+      ESP_LOGI(TAG, "AsyncWebHandler_1::canHandle %s", request->url().c_str());
       return true;
+    }
 
     return false;
   }
@@ -66,10 +68,12 @@ namespace web_server
 
   bool AsyncWebHandler_2::canHandle(AsyncWebServerRequest *request)
   {
-    ESP_LOGI(TAG, "AsyncWebHandler_2::canHandle %s", request->url().c_str());
 
     if (request->url() == _uri)
+    {
+      ESP_LOGI(TAG, "AsyncWebHandler_2::canHandle %s", request->url().c_str());
       return true;
+    }
 
     return false;
   }

@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-//#include "optional.h"
+// #include "optional.h"
 
 #include "web_handler.h"
 
@@ -61,6 +61,9 @@ namespace web_server
     friend class AsyncWebServerRequest;
     friend class AsyncEventSourceResponse;
 
+  protected:
+    std::vector<std::pair<std::string, std::string>> headers_;
+
   public:
     void addHeader(const char *name, const char *value) { this->headers_.emplace_back(name, value); }
 
@@ -68,10 +71,11 @@ namespace web_server
     {
       static DefaultHeaders instance;
       return instance;
-    }
+    }  
+    
+    const std::vector<std::pair<std::string, std::string>> getHeaders() const { return headers_; };
 
-  protected:
-    std::vector<std::pair<std::string, std::string>> headers_;
   };
+
 
 } // namespace web_server_idf
