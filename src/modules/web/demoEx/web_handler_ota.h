@@ -14,7 +14,7 @@
 namespace web_server
 {
 
-  class OTARequestHandler : public AsyncWebHandler
+  class OTARequestHandler : public HandlerBase
   {
   public:
     OTARequestHandler(WebServerContainer *parent) : parent_(parent) {}

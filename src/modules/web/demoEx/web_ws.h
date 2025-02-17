@@ -18,7 +18,7 @@ namespace web_server
     class AsyncWSSourceResponse;
 
     /// Добавить признак WS. В Addhandler добавить определение этого признака и ....
-    class AsyncWebHandlerWSSource : public AsyncWebHandler
+    class AsyncWebHandlerWSSource : public HandlerBase
     {
         friend class AsyncWSSourceResponse;
         using connect_handler_t = std::function<void(AsyncWSSourceResponse *)>;

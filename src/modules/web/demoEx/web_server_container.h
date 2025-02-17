@@ -31,7 +31,7 @@ namespace web_server
   /// Именн этот класс владел реальным веб сервером с портом и прочим
   ///  а ткаже настройками пользователя и пароля
   /// ОБработчики добавляемые через него midleware используют имя пароль
-  class WebServerContainer
+  class WebServerContainer : public IHandlerContainer
   {
   protected:
     friend class OTARequestHandler;
@@ -39,7 +39,7 @@ namespace web_server
     int initialized_{0};
     const uint16_t port_{80};
     std::shared_ptr<IDFWebServer> _IDFWebServer{nullptr};
-    std::vector<AsyncWebHandler *> handlers_;
+    std::vector<HandlerBase *> handlers_;
     Credentials credentials_;
 
 #pragma region To refactor
@@ -112,7 +112,7 @@ namespace web_server
     // Добавление обработчика. Если ест имя пароль, то обработчик оборачивается в midleware
     // обработчики хранятся локально
     // если есть сервер, то сразу присоединяется к серверу
-    void add_handler(AsyncWebHandler *handler);
+    void add_handler(HandlerBase *handler);
 
     void add_ota_handler();
 

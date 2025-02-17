@@ -17,7 +17,7 @@
 
     class AsyncEventSourceResponse;
 
-    class AsyncWebHandlerEventSource : public AsyncWebHandler
+    class AsyncWebHandlerEventSource : public HandlerBase
     {
       friend class AsyncEventSourceResponse;
       using connect_handler_t = std::function<void(AsyncEventSourceResponse *)>;

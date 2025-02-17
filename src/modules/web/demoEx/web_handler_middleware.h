@@ -15,10 +15,10 @@
 namespace web_server
 {
 
-  class MiddlewareHandler : public AsyncWebHandler
+  class MiddlewareHandler : public HandlerBase
   {
   public:
-    MiddlewareHandler(AsyncWebHandler *next) : next_(next) {}
+    MiddlewareHandler(HandlerBase *next) : next_(next) {}
 
     bool canHandle(AsyncWebServerRequest *request) override { return next_->canHandle(request); }
     void handleRequest(AsyncWebServerRequest *request) override { next_->handleRequest(request); }
@@ -34,7 +34,7 @@ namespace web_server
     bool isRequestHandlerTrivial() override { return next_->isRequestHandlerTrivial(); }
 
   protected:
-    AsyncWebHandler *next_;
+    HandlerBase *next_;
   };
 
   struct Credentials
@@ -49,7 +49,7 @@ namespace web_server
     Credentials *credentials_;
 
   public:
-    AuthMiddlewareHandler(AsyncWebHandler *next, Credentials *credentials)
+    AuthMiddlewareHandler(HandlerBase *next, Credentials *credentials)
         : MiddlewareHandler(next), credentials_(credentials) {}
 
     bool check_auth(AsyncWebServerRequest *request)

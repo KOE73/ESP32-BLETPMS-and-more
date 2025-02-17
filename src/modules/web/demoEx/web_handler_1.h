@@ -11,32 +11,41 @@
 
 namespace web_server
 {
+  class HandlerStaticUri : public HandlerBase // public Controller, public Component,
+  {
+  protected:
+    const char *_uri;
+
+  public:
+    HandlerStaticUri(const char *uri) : _uri(uri) {};
+    HandlerStaticUri(IHandlerContainer &handlerContainer, const char *uri) : HandlerBase(handlerContainer), _uri(uri) {};
+  };
 
   /// @brief For static text
-  class AsyncWebHandler_1 : public AsyncWebHandler // public Controller, public Component,
+  class HandlerStaticUriText : public HandlerStaticUri
   {
   private:
-    const char *_uri;
     const char *_text;
-    ssize_t _text_len;
+    const ssize_t _text_len;
+
 
   protected:
-    /// Override the web handler's canHandle method.
     bool canHandle(AsyncWebServerRequest *request) override;
-    /// Override the web handler's handleRequest method.
     void handleRequest(AsyncWebServerRequest *request) override;
 
   public:
-    AsyncWebHandler_1(const char *uri);
-    AsyncWebHandler_1(const char *uri, const char *text);
-    AsyncWebHandler_1(const char *uri, const char *text, ssize_t buf_len);
+    HandlerStaticUriText(const char *uri);
+    HandlerStaticUriText(const char *uri, const char *text);
+    HandlerStaticUriText(const char *uri, const char *text, ssize_t text_len);
+    HandlerStaticUriText(IHandlerContainer &handlerContainer, const char *uri);
+    HandlerStaticUriText(IHandlerContainer &handlerContainer, const char *uri, const char *text);
+    HandlerStaticUriText(IHandlerContainer &handlerContainer, const char *uri, const char *text, ssize_t text_len);
   };
 
   /// @brief For binary and may be gziped
-  class AsyncWebHandler_2 : public AsyncWebHandler // public Controller, public Component,
+  class HandlerStaticUriBin : public HandlerStaticUri
   {
   private:
-    const char *_uri;
     const uint8_t *_buf;
     const ssize_t _buf_len;
     const bool _is_gzip{false};
@@ -48,7 +57,8 @@ namespace web_server
     void handleRequest(AsyncWebServerRequest *request) override;
 
   public:
-    AsyncWebHandler_2(const char *uri, const uint8_t *buf, ssize_t buf_len, bool is_gzip = false);
+    HandlerStaticUriBin(const char *uri, const uint8_t *buf, ssize_t buf_len, bool is_gzip = false);
+    HandlerStaticUriBin(IHandlerContainer &handlerContainer, const char *uri, const uint8_t *buf, ssize_t buf_len, bool is_gzip = false);
   };
 
 } // namespace web_server

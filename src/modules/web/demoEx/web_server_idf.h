@@ -23,7 +23,7 @@ namespace web_server
 
   class AsyncWebServerRequest;
 
-  class AsyncWebHandler;
+  //class HandlerBase;
 
   class IDFWebServer
   {
@@ -32,7 +32,7 @@ namespace web_server
     httpd_handle_t _httpd_handle{};
 
     esp_err_t request_handler_(AsyncWebServerRequest *request) const;
-    std::vector<AsyncWebHandler *> handlers_;
+    std::vector<HandlerBase *> handlers_;
     std::function<void(AsyncWebServerRequest *request)> on_not_found_{};
 
 #pragma region Handlers from C world to convert to C++ world
@@ -49,7 +49,7 @@ namespace web_server
     void begin();
     void end();
 
-    AsyncWebHandler &addHandler(AsyncWebHandler *handler)
+    HandlerBase &addHandler(HandlerBase *handler)
     {
       this->handlers_.push_back(handler);
       return *handler;
