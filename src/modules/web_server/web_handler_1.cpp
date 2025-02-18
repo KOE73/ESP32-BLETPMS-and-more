@@ -20,32 +20,32 @@ namespace web_server
 
 #pragma region AsyncWebHandler_1
 
-  HandlerStaticUriText::HandlerStaticUriText(const char *uri)
-      : HandlerStaticUriText(uri, "oK") {}
+  HandlerStaticUriText::HandlerStaticUriText(std::string url)
+      : HandlerStaticUriText(url, "oK") {}
 
-  HandlerStaticUriText::HandlerStaticUriText(const char *uri, const char *text)
-      : HandlerStaticUriText(uri, text, strlen(text)) {}
+  HandlerStaticUriText::HandlerStaticUriText(std::string url, const char *text)
+      : HandlerStaticUriText(url, text, strlen(text)) {}
 
-  HandlerStaticUriText::HandlerStaticUriText(const char *uri, const char *text, ssize_t text_len)
-      : HandlerStaticUri(uri), _text(text), _text_len(text_len)
+  HandlerStaticUriText::HandlerStaticUriText(std::string url, const char *text, ssize_t text_len)
+      : HandlerStaticUrl(url), _text(text), _text_len(text_len)
   {
   }
 
-  HandlerStaticUriText::HandlerStaticUriText(IHandlerContainer &handlerContainer, const char *uri)
-      : HandlerStaticUriText(handlerContainer, uri, "oK") {}
+  HandlerStaticUriText::HandlerStaticUriText(IHandlerContainer &handlerContainer, std::string url)
+      : HandlerStaticUriText(handlerContainer, url, "oK") {}
 
-  HandlerStaticUriText::HandlerStaticUriText(IHandlerContainer &handlerContainer, const char *uri, const char *text)
-      : HandlerStaticUriText(handlerContainer, uri, text, strlen(text)) {}
+  HandlerStaticUriText::HandlerStaticUriText(IHandlerContainer &handlerContainer, std::string url, const char *text)
+      : HandlerStaticUriText(handlerContainer, url, text, strlen(text)) {}
 
-  HandlerStaticUriText::HandlerStaticUriText(IHandlerContainer &handlerContainer, const char *uri, const char *text, ssize_t text_len)
-      : HandlerStaticUri(handlerContainer, uri), _text(text), _text_len(text_len)
+  HandlerStaticUriText::HandlerStaticUriText(IHandlerContainer &handlerContainer, std::string url, const char *text, ssize_t text_len)
+      : HandlerStaticUrl(handlerContainer, url), _text(text), _text_len(text_len)
   {
   }
 
   bool HandlerStaticUriText::canHandle(AsyncWebServerRequest *request)
   {
 
-    if (request->url() == _uri)
+    if (request->url() == _url)
     {
       ESP_LOGI(TAG, "AsyncWebHandler_1::canHandle %s", request->url().c_str());
       return true;
@@ -60,7 +60,7 @@ namespace web_server
 
     // "text/css" ....
     // text/javascript
-    if (request->url() == _uri)
+    if (request->url() == _url)
     {
       AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", reinterpret_cast<const uint8_t *>(_text), _text_len);
       // response->addHeader("Content-Encoding", "gzip");
@@ -73,20 +73,20 @@ namespace web_server
 
 #pragma region AsyncWebHandler_2
 
-  HandlerStaticUriBin::HandlerStaticUriBin(const char *uri, const uint8_t *buf, ssize_t buf_len, bool is_gzip)
-      : HandlerStaticUri(uri), _buf(buf), _buf_len(buf_len), _is_gzip(is_gzip)
+  HandlerStaticUriBin::HandlerStaticUriBin(std::string url, const uint8_t *buf, ssize_t buf_len, bool is_gzip)
+      : HandlerStaticUrl(url), _buf(buf), _buf_len(buf_len), _is_gzip(is_gzip)
   {
   }
 
-  HandlerStaticUriBin::HandlerStaticUriBin(IHandlerContainer &handlerContainer, const char *uri, const uint8_t *buf, ssize_t buf_len, bool is_gzip)
-      : HandlerStaticUri(handlerContainer,uri), _buf(buf), _buf_len(buf_len), _is_gzip(is_gzip)
+  HandlerStaticUriBin::HandlerStaticUriBin(IHandlerContainer &handlerContainer, std::string url, const uint8_t *buf, ssize_t buf_len, bool is_gzip)
+      : HandlerStaticUrl(handlerContainer,url), _buf(buf), _buf_len(buf_len), _is_gzip(is_gzip)
   {
   }
 
   bool HandlerStaticUriBin::canHandle(AsyncWebServerRequest *request)
   {
 
-    if (request->url() == _uri)
+    if (request->url() == _url)
     {
       ESP_LOGI(TAG, "AsyncWebHandler_2::canHandle %s", request->url().c_str());
       return true;
@@ -99,7 +99,7 @@ namespace web_server
   {
     ESP_LOGI(TAG, "AsyncWebHandler_2::handleRequest %s", request->url().c_str());
 
-    if (request->url() == _uri)
+    if (request->url() == _url)
     {
       AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", reinterpret_cast<const uint8_t *>(_buf), _buf_len);
       if (_is_gzip)

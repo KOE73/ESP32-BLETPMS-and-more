@@ -66,7 +66,8 @@
         "*.bak": "cpp",
         "bitset": "cpp",
         "regex": "cpp",
-        "list": "cpp"
+        "list": "cpp",
+        "mutex": "cpp"
     },
     "editor.minimap.scale": 2,
     "editor.minimap.showSlider": "always",

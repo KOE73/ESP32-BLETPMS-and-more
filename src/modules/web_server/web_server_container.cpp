@@ -21,7 +21,7 @@ namespace web_server
   {
     // remove all handlers
 
-    if (!credentials_.username.empty())
+    //if (!credentials_.username.empty())
     {
       handler = new AuthMiddlewareHandler(handler, &credentials_);
     }
@@ -67,7 +67,7 @@ namespace web_server
     root["lang"] = "en"; });
   }
 
-  void WebServerContainer::setup()
+  void WebServerContainer::start()
   {
     // ESP_LOGCONFIG(TAG, "Setting up web server...");
     ESP_LOGI(TAG, "Setting up web server...");
@@ -78,23 +78,23 @@ namespace web_server
     init();
 
     // Adding a new session initializer
-    this->events_.onConnect([this /*WebServerContainer*/](AsyncEventSourceResponse *client)
-                            {
-                              ESP_LOGI(TAG, "Events -> onConnect");
-                              // Configure reconnect timeout and send config
-                              client->send("Hello on onConnect");
-                              client->send(this->get_config_json().c_str(), "ping", 1000 /*millis()*/, 30000);
-
-                              // for (auto &group : this->sorting_groups_) {
-                              //   client->send(json::build_json([group](JsonObject root) {
-                              //                  root["name"] = group.second.name;
-                              //                  root["sorting_weight"] = group.second.weight;
-                              //                }).c_str(),
-                              //                "sorting_group");
-                              // }
-
-                              // this->entities_iterator_.begin(this->include_internal_);
-                            });
+    // this->events_.onConnect([this /*WebServerContainer*/](AsyncEventSourceResponse *client)
+    //                        {
+    //                          ESP_LOGI(TAG, "Events -> onConnect");
+    //                          // Configure reconnect timeout and send config
+    //                          client->send("Hello on onConnect");
+    //                          client->send(this->get_config_json().c_str(), "ping", 1000 /*millis()*/, 30000);
+    //
+    //                          // for (auto &group : this->sorting_groups_) {
+    //                          //   client->send(json::build_json([group](JsonObject root) {
+    //                          //                  root["name"] = group.second.name;
+    //                          //                  root["sorting_weight"] = group.second.weight;
+    //                          //                }).c_str(),
+    //                          //                "sorting_group");
+    //                          // }
+    //
+    //                          // this->entities_iterator_.begin(this->include_internal_);
+    //                        });
 
 #ifdef USE_LOGGER
     if (logger::global_logger != nullptr && this->expose_log_)
@@ -105,9 +105,9 @@ namespace web_server
     }
 #endif
     // this->_webServerBaseComponent->add_handler(&this->events_);
-    add_handler(&this->events_);
-
-    add_handler(&this->ws_);
+    //add_handler(&this->events_);
+//
+    //add_handler(&this->ws_);
 
     // перенес в WebServerControllerComponent
     // this->_webServerBaseComponent->add_handler(&_main_handler);

@@ -24,12 +24,24 @@ namespace web_server
 #define CRLF_LEN (sizeof(CRLF_STR) - 1)
 #pragma region HandlerEventSource
 
-    typedef struct
-    {
-        int user_id;
-    } transport_data_t;
+    // typedef struct
+    //{
+    //     int user_id;
+    // } transport_data_t;
 
-    AsyncWebHandlerWSSource::AsyncWebHandlerWSSource(std::string url) : url_(std::move(url))
+    AsyncWebHandlerWSSource::AsyncWebHandlerWSSource(std::string url)
+        : HandlerStaticUrl(url)
+    {
+        init();
+    }
+
+    AsyncWebHandlerWSSource ::AsyncWebHandlerWSSource(IHandlerContainer &handlerContainer, std::string url)
+        : HandlerStaticUrl(handlerContainer, url)
+    {
+        init();
+    }
+
+    void AsyncWebHandlerWSSource::init()
     {
         _sendMutex = xSemaphoreCreateMutex();
     }
@@ -50,7 +62,7 @@ namespace web_server
 
         auto httpd_req = request->getHttpdReq();
 
-        if (httpd_req->method == HTTP_GET && request->url() == url_)
+        if (httpd_req->method == HTTP_GET && request->url() == _url)
         {
             ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::canHandle 2 method=%i url='%s'", request->method(), request->url().c_str());
             return true;
@@ -72,13 +84,17 @@ namespace web_server
         if (httpd_req->method == HTTP_GET)
         {                                                         // Make new AsyncWSSourceResponse
             auto *rsp = new AsyncWSSourceResponse(request, this); // NOLINT(cppcoreguidelines-owning-memory)
-            // httpd_req->user_ctx = (void *)_key;
+
+            // External init, if any be
+            if (this->_on_connect)
+            {
+                this->_on_connect(rsp);
+            }
 
             this->_ws_responses.insert(rsp);
 
             ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::handleRequest HTTP_GET");
 
-            // httpd_ws_get_fd_info(httpd_req);
             return;
         }
         // httpd_sess_set_transport_ctx
@@ -88,7 +104,7 @@ namespace web_server
         // const char *connection_type = (const char *)httpd_req->user_ctx;
 
         // ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::handleRequest '%s' '%s'", connection_type, _key);
-         ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::handleRequest '%p' '%s'", rsp, _key);
+        ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::handleRequest '%p' ", rsp);
 
         // Буфер для входящих данных
         char buf[128];
