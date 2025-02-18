@@ -50,8 +50,8 @@ namespace web_server
 
     // Why inside? Move it out as a regular handler.
     // If you want it inside, you can make a virtual initializer
-    AsyncWebHandlerEventSource events_{"/events"};
-    AsyncWebHandlerWSSource ws_{"/ws"};
+    // AsyncWebHandlerEventSource events_{"/events"};
+    // AsyncWebHandlerWSSource ws_{"/ws"};
 
     // Пока временно тут
     AsyncWebHandler_WebServer _main_handler;
@@ -68,8 +68,8 @@ namespace web_server
     WebServerContainer(uint16_t port);
     ~WebServerContainer();
 
-    const AsyncWebHandlerEventSource &getEvents() const { return events_; }
-    const AsyncWebHandlerWSSource &getWS() const { return ws_; }
+    //const AsyncWebHandlerEventSource &getEvents() const { return events_; }
+    //const AsyncWebHandlerWSSource &getWS() const { return ws_; }
 
     // Запуск idf web сервера и присоединение локальных обработчиков
     void init()
@@ -128,7 +128,7 @@ namespace web_server
     // Присоединяет свои базовые обработчики, которые отвечают за страницу и ота и прочие обязатеьльности
     // Также обработчик от AsyncWebHandler_WebServer, который раньше входил с состав этого класса
     // Будет переосмысливаться
-    void setup(); /*override*/
+    void start(); /*override*/
 
     void loop(); /*override*/
 

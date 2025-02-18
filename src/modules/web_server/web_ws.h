@@ -18,29 +18,31 @@ namespace web_server
     class AsyncWSSourceResponse;
 
     /// Добавить признак WS. В Addhandler добавить определение этого признака и ....
-    class AsyncWebHandlerWSSource : public HandlerBase
+    class AsyncWebHandlerWSSource : public HandlerStaticUrl
     {
         friend class AsyncWSSourceResponse;
         using connect_handler_t = std::function<void(AsyncWSSourceResponse *)>;
 
     protected:
-        std::string url_;
         std::set<AsyncWSSourceResponse *> _ws_responses;
-        connect_handler_t on_connect_{};
-
-        const char *_key{"wwss"};
+        connect_handler_t _on_connect{};
 
         SemaphoreHandle_t _sendMutex;
+        void init();
 
     public:
         AsyncWebHandlerWSSource(std::string url);
+        AsyncWebHandlerWSSource(IHandlerContainer &handlerContainer, std::string url);
         ~AsyncWebHandlerWSSource() override;
 
         bool canHandle(AsyncWebServerRequest *request) override;
 
         void handleRequest(AsyncWebServerRequest *request) override;
 
-        void onConnect(connect_handler_t cb) { this->on_connect_ = std::move(cb); }
+        /// @brief 
+        ///     Cannot call client->send()
+        /// @param cb 
+        void onConnect(connect_handler_t cb) { this->_on_connect = std::move(cb); }
 
         /// @brief Send message to all event sessions
         /// @param message

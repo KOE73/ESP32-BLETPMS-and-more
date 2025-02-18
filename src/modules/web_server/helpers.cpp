@@ -1,6 +1,4 @@
 
-#define USE_ESP_IDF
-
 #include "helpers.h"
 
 // #include "esphome/core/defines.h"

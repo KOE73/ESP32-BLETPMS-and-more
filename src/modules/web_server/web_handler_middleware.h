@@ -64,10 +64,16 @@ namespace web_server
 
     void handleRequest(AsyncWebServerRequest *request) override
     {
-      if (!check_auth(request))
-        return;
+      // For WS method == 0
+      // TODO Mind
+      if (request->getMethod())
+      {
+        if (!check_auth(request))
+          return;
+      }
       MiddlewareHandler::handleRequest(request);
     }
+
     void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len,
                       bool final) override
     {
@@ -75,6 +81,7 @@ namespace web_server
         return;
       MiddlewareHandler::handleUpload(request, filename, index, data, len, final);
     }
+
     void handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) override
     {
       if (!check_auth(request))
