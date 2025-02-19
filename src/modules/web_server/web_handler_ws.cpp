@@ -11,7 +11,7 @@
 
 #include "utils.h"
 #include "web_server_idf.h"
-#include "web_ws.h"
+#include "web_handler_ws.h"
 
 static const char *TAG_EVENT_HANDLER = "EVENT_HANDLER";
 static const char *TAG_RESPONSE = "WS_RESPONSE";
