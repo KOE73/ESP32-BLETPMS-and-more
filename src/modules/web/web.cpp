@@ -48,6 +48,9 @@ extern const int css_css_length;
 #include "web_server_idf.h"
 #include "web_server_container.h"
 #include "web_handler_1.h"
+#include "web_handler_events.h"
+#include "web_handler_ws.h"
+#include "web_handler_api.h"
 
 using namespace web_server;
 
@@ -59,12 +62,16 @@ HandlerStaticUriText css_h(aServer, "/css.css", css_css_start, css_css_length);
 AsyncWebHandlerEventSource events_h(aServer, "/events");
 AsyncWebHandlerWSSource ws_h(aServer, "/ws");
 
+HandlerApi handler_api;//aServer
+
 // Could it be done through events, without direct calls?
 esp_err_t start_web_server(void)
 {
 
     aServer.set_auth_username("1");
     aServer.set_auth_password("1");
+
+    aServer.add_handler(&handler_api);
 
     aServer.start();
 

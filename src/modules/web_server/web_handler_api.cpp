@@ -2,8 +2,7 @@
 
 #ifdef USE_WEBSERVER
 
-#include "web_server.h"
-#include "web_handler_main.h"
+#include "web_handler_api.h"
 
 #include "json_util.h"
 // #include "esphome/components/network/util.h"
@@ -36,12 +35,12 @@ namespace web_server
 
 #pragma region AsyncWebHandler_WebServer
 
-  bool AsyncWebHandler_WebServer::canHandle(AsyncWebServerRequest *request)
+  bool HandlerApi::canHandle(AsyncWebServerRequest *request)
   {
 
     if (request->url() == "/")
     {
-      ESP_LOGI(TAG, "AsyncWebHandler_WebServer::canHandle %s", request->url().c_str());
+      ESP_LOGI(TAG, "HandlerApi::canHandle %s", request->url().c_str());
       return true;
     }
 
@@ -89,9 +88,9 @@ namespace web_server
     return false;
   }
 
-  void AsyncWebHandler_WebServer::handleRequest(AsyncWebServerRequest *request)
+  void HandlerApi::handleRequest(AsyncWebServerRequest *request)
   {
-    ESP_LOGI(TAG, "AsyncWebHandler_WebServer::handleRequest %s", request->url().c_str());
+    ESP_LOGI(TAG, "HandlerApi::handleRequest %s", request->url().c_str());
 
     // if (request->url() == "/")
     //{
@@ -141,7 +140,7 @@ namespace web_server
 #endif
   }
 
-  bool AsyncWebHandler_WebServer::isRequestHandlerTrivial()
+  bool HandlerApi::isRequestHandlerTrivial()
   {
     return false;
   }

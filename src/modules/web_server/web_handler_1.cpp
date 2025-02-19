@@ -1,4 +1,3 @@
-// #include "web_server.h"
 #include "web_handler_1.h"
 
 #include "json_util.h"
