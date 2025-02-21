@@ -12,7 +12,7 @@
 
 #include "web_handler.h"
 
-namespace web_server
+namespace yaidfws
 {
 
   class MiddlewareHandler : public HandlerBase
@@ -90,4 +90,4 @@ namespace web_server
     }
   };
 
-} // namespace web_server
+} // namespace yaidfws

@@ -10,7 +10,7 @@
 
 #include "web_request.h"
 
-namespace web_server
+namespace yaidfws
 {
     class HandlerBase;
     class IHandlerContainer
@@ -66,10 +66,10 @@ namespace web_server
     class HandlerStaticUrl : public HandlerBase // public Controller, public Component,
     {
     protected:
-        std::string _url;
+        std::string url_;
 
     public:
-        HandlerStaticUrl(std::string url) : _url(std::move(url)) {};
-        HandlerStaticUrl(IHandlerContainer &handlerContainer, std::string url) : HandlerBase(handlerContainer), _url(std::move(url)) {};
+        HandlerStaticUrl(std::string url) : url_(std::move(url)) {};
+        HandlerStaticUrl(IHandlerContainer &handlerContainer, std::string url) : HandlerBase(handlerContainer), url_(std::move(url)) {};
     };
-} // namespace web_server_idf
+} // namespace yaidfws

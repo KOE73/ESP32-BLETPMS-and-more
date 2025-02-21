@@ -19,7 +19,7 @@
 #include "web_server_idf.h"
 #include "web_handler_middleware.h"
 
-namespace web_server
+namespace yaidfws
 {
     // ??? Разобраться с h
     class HandlerApi;
@@ -35,7 +35,7 @@ namespace web_server
 
         int initialized_{0};
         const uint16_t port_{80};
-        std::shared_ptr<IDFWebServer> _IDFWebServer{nullptr};
+        std::shared_ptr<IDFWebServer> IDFWebServer_{nullptr};
         std::vector<HandlerBase *> handlers_;
         Credentials credentials_;
 
@@ -68,16 +68,16 @@ namespace web_server
             }
 
             // Делаем сервер
-            this->_IDFWebServer = std::make_shared<IDFWebServer>(this->port_);
+            this->IDFWebServer_ = std::make_shared<IDFWebServer>(this->port_);
 
             // All content is controlled and created by user - so allowing all origins is fine here.
             DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
 
             // Запускаем сервер
-            this->_IDFWebServer->begin();
+            this->IDFWebServer_->begin();
 
             for (auto *handler : this->handlers_)
-                this->_IDFWebServer->addHandler(handler);
+                this->IDFWebServer_->addHandler(handler);
 
             this->initialized_++;
         }
@@ -87,11 +87,11 @@ namespace web_server
             this->initialized_--;
             if (this->initialized_ == 0)
             {
-                this->_IDFWebServer = nullptr;
+                this->IDFWebServer_ = nullptr;
             }
         }
 
-        std::shared_ptr<IDFWebServer> get_server() const { return _IDFWebServer; }
+        std::shared_ptr<IDFWebServer> get_server() const { return IDFWebServer_; }
 
         void set_auth_username(std::string auth_username) { credentials_.username = std::move(auth_username); }
         void set_auth_password(std::string auth_password) { credentials_.password = std::move(auth_password); }
@@ -130,4 +130,4 @@ namespace web_server
 #pragma endregion
     };
 
-} // namespace web_server
+} // namespace yaidfws

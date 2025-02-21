@@ -12,7 +12,7 @@
 
 #include <cstdlib>
 
-namespace web_server
+namespace yaidfws
 {
 
   static const char *const TAG = "web_server";
@@ -44,7 +44,7 @@ namespace web_server
   bool HandlerStaticUriText::canHandle(AsyncWebServerRequest *request)
   {
 
-    if (request->url() == _url)
+    if (request->url() == url_)
     {
       ESP_LOGI(TAG, "AsyncWebHandler_1::canHandle %s", request->url().c_str());
       return true;
@@ -59,7 +59,7 @@ namespace web_server
 
     // "text/css" ....
     // text/javascript
-    if (request->url() == _url)
+    if (request->url() == url_)
     {
       AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", reinterpret_cast<const uint8_t *>(_text), _text_len);
       // response->addHeader("Content-Encoding", "gzip");
@@ -85,7 +85,7 @@ namespace web_server
   bool HandlerStaticUriBin::canHandle(AsyncWebServerRequest *request)
   {
 
-    if (request->url() == _url)
+    if (request->url() == url_)
     {
       ESP_LOGI(TAG, "AsyncWebHandler_2::canHandle %s", request->url().c_str());
       return true;
@@ -98,7 +98,7 @@ namespace web_server
   {
     ESP_LOGI(TAG, "AsyncWebHandler_2::handleRequest %s", request->url().c_str());
 
-    if (request->url() == _url)
+    if (request->url() == url_)
     {
       AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", reinterpret_cast<const uint8_t *>(_buf), _buf_len);
       if (_is_gzip)
@@ -110,4 +110,4 @@ namespace web_server
 
 #pragma endregion
 
-} // namespace web_server
+} // namespace yaidfws

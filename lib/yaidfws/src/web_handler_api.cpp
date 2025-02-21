@@ -28,7 +28,7 @@
 #include "esphome/components/climate/climate.h"
 #endif
 
-namespace web_server
+namespace yaidfws
 {
 
   static const char *const TAG = "web_server";
@@ -57,9 +57,12 @@ namespace web_server
     }
 #endif
 
-    UrlMatch match = match_url(request->url().c_str(), true);
-    if (!match.valid)
-      return false;
+    //UrlMatch match = match_url(request->url().c_str(), true);
+    auto *url = &request->getParser();
+ 
+
+   // if (!match.valid)
+   //   return false;
 #ifdef USE_SENSOR
     if (request->method() == HTTP_GET && match.domain == "sensor")
       return true;
@@ -105,8 +108,9 @@ namespace web_server
       return;
     }
 #endif
-
-    UrlMatch match = match_url(request->url().c_str());
+auto *url = &request->getParser();
+ 
+    // UrlMatch match = match_url(request->url().c_str());
 #ifdef USE_SENSOR
     if (match.domain == "sensor")
     {
@@ -147,6 +151,6 @@ namespace web_server
 
 #pragma endregion
 
-} // namespace web_server
+} // namespace yaidfws
 
 #endif // USE_WEBSERVER

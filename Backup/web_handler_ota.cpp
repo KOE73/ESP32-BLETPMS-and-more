@@ -6,7 +6,7 @@
 // #include "esphome/core/application.h"
 // #include "esphome/core/helpers.h"
 
-namespace web_server
+namespace yaidfws
 {
 
   static const char *const TAG = "web_server";
@@ -112,4 +112,4 @@ namespace web_server
 #endif
   }
 
-} // namespace web_server
+} // namespace yaidfws

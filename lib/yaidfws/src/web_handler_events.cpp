@@ -9,7 +9,7 @@
 
 #include "esp_tls_crypto.h"
 
-#include "utils.h"
+//#include "utils.h"
 #include "web_server_idf.h"
 #include "web_handler_events.h"
 
@@ -17,7 +17,7 @@ static const char *TAG_EVENT_HANDLER = "EVENT_HANDLER";
 static const char *TAG_RESPONSE = "EVENT_RESPONSE";
 #define LOG_WEB2_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_BLUE, LOG_ANSI_COLOR_BG_CYAN)
 
-namespace web_server
+namespace yaidfws
 {
 
 #define CRLF_STR "\r\n"
@@ -38,7 +38,7 @@ namespace web_server
     
     void AsyncWebHandlerEventSource::init()
     {
-        _sendMutex = xSemaphoreCreateMutex();
+        sendMutex_ = xSemaphoreCreateMutex();
     }
 
     AsyncWebHandlerEventSource::~AsyncWebHandlerEventSource()
@@ -56,9 +56,9 @@ namespace web_server
         // Make new AsyncEventSourceResponse
         auto *rsp = new AsyncEventSourceResponse(request, this); // NOLINT(cppcoreguidelines-owning-memory)
         // External init, if any be
-        if (this->_on_connect)
+        if (this->on_connect_)
         {
-            this->_on_connect(rsp);
+            this->on_connect_(rsp);
         }
         // Store in sessions
         this->_event_responses.insert(rsp);
@@ -66,7 +66,7 @@ namespace web_server
 
     void AsyncWebHandlerEventSource::send(const char *message, const char *event, uint32_t id, uint32_t reconnect) const
     {
-        if (xSemaphoreTake(_sendMutex, portMAX_DELAY))
+        if (xSemaphoreTake(sendMutex_, portMAX_DELAY))
         {
             // ESP_LOGI(TAG_EVENT_HANDLER, "AsyncWebHandlerEventSource::send sessions.count %i", this->_event_responses.size());
 
@@ -74,7 +74,7 @@ namespace web_server
             {
                 ses->send(message, event, id, reconnect);
             }
-            xSemaphoreGive(_sendMutex);
+            xSemaphoreGive(sendMutex_);
         }
     }
 
@@ -178,4 +178,4 @@ namespace web_server
 
 #pragma endregion
 
-} // namespace web_server_idf
+} // namespace yaidfws

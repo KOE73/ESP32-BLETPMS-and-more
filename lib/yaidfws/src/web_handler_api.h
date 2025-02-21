@@ -14,7 +14,7 @@ extern const uint8_t ESPHOME_WEBSERVER_INDEX_HTML[] /*PROGMEM*/;
 extern const size_t ESPHOME_WEBSERVER_INDEX_HTML_SIZE;
 #endif
 
-namespace web_server
+namespace yaidfws
 {
 
     class HandlerApi : public HandlerBase
@@ -85,4 +85,4 @@ namespace web_server
 #pragma endregion
     };
 
-} // namespace web_server
+} // namespace yaidfws

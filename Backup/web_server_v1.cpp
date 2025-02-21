@@ -5,7 +5,7 @@
 
 namespace esphome
 {
-  namespace web_server
+  namespace yaidfws
   {
 
     void write_row(AsyncResponseStream *stream, EntityBase *obj, const std::string &klass, const std::string &action,
@@ -237,6 +237,6 @@ namespace esphome
       request->send(stream);
     }
 
-  } // namespace web_server
+  } // namespace yaidfws
 } // namespace esphome
 #endif

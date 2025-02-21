@@ -11,8 +11,8 @@ FILE(GLOB_RECURSE MY_HEADER_DIRS "${CMAKE_SOURCE_DIR}/src/*")
 
 # This compiles but does not create itself. To create it, use board_build.embed_txtfiles in platformio.ini.
 idf_component_register(SRCS ${app_sources}
-    INCLUDE_DIRS
-        ${CMAKE_SOURCE_DIR}/src/modules/web_server
+#    INCLUDE_DIRS
+#        ${CMAKE_SOURCE_DIR}/src/modules/web_server
         #${MY_HEADER_DIRS}
     EMBED_TXTFILES
         "www/index.html"

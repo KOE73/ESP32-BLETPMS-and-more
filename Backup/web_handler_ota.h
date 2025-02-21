@@ -11,7 +11,7 @@
 #include "web_server_idf.h"
 #include "web_handler.h"
 
-namespace web_server
+namespace yaidfws
 {
 
   class OTARequestHandler : public HandlerBase
@@ -35,4 +35,4 @@ namespace web_server
     WebServerContainer *parent_;
   };
 
-} // namespace web_server
+} // namespace yaidfws

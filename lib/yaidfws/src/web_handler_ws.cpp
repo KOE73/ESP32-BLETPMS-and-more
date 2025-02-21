@@ -9,7 +9,7 @@
 
 #include "esp_tls_crypto.h"
 
-#include "utils.h"
+//#include "utils.h"
 #include "web_server_idf.h"
 #include "web_handler_ws.h"
 
@@ -17,7 +17,7 @@ static const char *TAG_EVENT_HANDLER = "EVENT_HANDLER";
 static const char *TAG_RESPONSE = "WS_RESPONSE";
 #define LOG_WEB2_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_BLUE, LOG_ANSI_COLOR_BG_CYAN)
 
-namespace web_server
+namespace yaidfws
 {
 
 #define CRLF_STR "\r\n"
@@ -43,14 +43,14 @@ namespace web_server
 
     void AsyncWebHandlerWSSource::init()
     {
-        _sendMutex = xSemaphoreCreateMutex();
+        sendMutex_ = xSemaphoreCreateMutex();
     }
 
     AsyncWebHandlerWSSource::~AsyncWebHandlerWSSource()
     {
         ESP_LOGI(TAG_EVENT_HANDLER, "AsyncWebHandlerWSSource ~!~~~~~~~~~~~~~~~~~~~~~~");
 
-        for (auto *ses : this->_ws_responses)
+        for (auto *ses : this->ws_responses_)
         {
             delete ses; // NOLINT(cppcoreguidelines-owning-memory)
         }
@@ -62,7 +62,7 @@ namespace web_server
 
         auto httpd_req = request->getHttpdReq();
 
-        if (httpd_req->method == HTTP_GET && request->url() == _url)
+        if (httpd_req->method == HTTP_GET && request->url() == url_)
         {
             ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::canHandle 2 method=%i url='%s'", request->method(), request->url().c_str());
             return true;
@@ -86,12 +86,12 @@ namespace web_server
             auto *rsp = new AsyncWSSourceResponse(request, this); // NOLINT(cppcoreguidelines-owning-memory)
 
             // External init, if any be
-            if (this->_on_connect)
+            if (this->on_connect_)
             {
-                this->_on_connect(rsp);
+                this->on_connect_(rsp);
             }
 
-            this->_ws_responses.insert(rsp);
+            this->ws_responses_.insert(rsp);
 
             ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::handleRequest HTTP_GET");
 
@@ -127,15 +127,15 @@ namespace web_server
 
     void AsyncWebHandlerWSSource::send(const char *message, const char *event, uint32_t id, uint32_t reconnect) const
     {
-        if (xSemaphoreTake(_sendMutex, portMAX_DELAY))
+        if (xSemaphoreTake(sendMutex_, portMAX_DELAY))
         {
             // ESP_LOGI(TAG_EVENT_HANDLER, "AsyncWebHandlerWSSource::send sessions.count %i", this->_event_responses.size());
 
-            for (auto *ses : this->_ws_responses)
+            for (auto *ses : this->ws_responses_)
             {
                 ses->send(message, event, id, reconnect);
             }
-            xSemaphoreGive(_sendMutex);
+            xSemaphoreGive(sendMutex_);
         }
     }
 
@@ -170,7 +170,7 @@ namespace web_server
         ESP_LOGI(TAG_RESPONSE, "AsyncWSSourceResponse::destroy !!!!!");
 
         auto *rsp = static_cast<AsyncWSSourceResponse *>(ptr);
-        rsp->_eventSource->_ws_responses.erase(rsp);
+        rsp->_eventSource->ws_responses_.erase(rsp);
         delete rsp; // NOLINT(cppcoreguidelines-owning-memory)
     }
 
@@ -234,4 +234,4 @@ namespace web_server
 
 #pragma endregion
 
-} // namespace web_server_idf
+} // namespace yaidfws

@@ -71,5 +71,17 @@
     },
     "editor.minimap.scale": 2,
     "editor.minimap.showSlider": "always",
-    "editor.minimap.size": "fill"
+    "editor.minimap.size": "fill",
+    "outline-map.hiddenItem": [
+        "variable",
+        "constant" 
+    ],
+    "outline-map.expand": "cursor",
+    "outline-map.defaultMaxDepth": 3,
+    "outline-map.follow": "cursor",
+    "workbench.colorCustomizations": {
+        "outline-map.visibleRangeBackground": "#333333",
+        "symbolIcon.classForeground": "#8b7d44",
+        "symbolIcon.methodForeground": "#476e82"
+    }
 }

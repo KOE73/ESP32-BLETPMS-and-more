@@ -8,7 +8,7 @@
 
 #include "utils.h"
 
-namespace web_server
+namespace yaidfws
 {
 
   static const char *const TAG = "web_server_idf_utils";
@@ -110,6 +110,6 @@ namespace web_server
     return {val.get()};
   }
 
-} // namespace web_server_idf
+} // namespace yaidfws
 
 #endif // USE_ESP_IDF

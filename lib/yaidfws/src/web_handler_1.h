@@ -9,7 +9,7 @@
 // #include "web_server_container.h"
 #include "web_handler.h"
 
-namespace web_server
+namespace yaidfws
 {
 
 
@@ -52,4 +52,4 @@ namespace web_server
     HandlerStaticUriBin(IHandlerContainer &handlerContainer, std::string url, const uint8_t *buf, ssize_t buf_len, bool is_gzip = false);
   };
 
-} // namespace web_server
+} // namespace yaidfws

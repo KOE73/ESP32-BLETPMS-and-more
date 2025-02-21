@@ -5,7 +5,7 @@
 #include <esp_http_server.h>
 #include "helpers.h"
 
-namespace web_server
+namespace yaidfws
 {
 
     bool request_has_header(httpd_req_t *req, const char *name);
@@ -13,6 +13,6 @@ namespace web_server
     std::optional<std::string> request_get_url_query(httpd_req_t *req);
     std::optional<std::string> query_key_value(const std::string &query_url, const std::string &key);
 
-} // namespace web_server_idf
+} // namespace yaidfws
 
 #endif // USE_ESP_IDF

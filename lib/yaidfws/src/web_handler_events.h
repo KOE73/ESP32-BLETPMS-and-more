@@ -12,7 +12,7 @@
 
 #include "web_handler.h"
 
-namespace web_server
+namespace yaidfws
 {
 
     class AsyncEventSourceResponse;
@@ -24,9 +24,9 @@ namespace web_server
 
     protected:
         std::set<AsyncEventSourceResponse *> _event_responses;
-        connect_handler_t _on_connect{};
+        connect_handler_t on_connect_{};
 
-        SemaphoreHandle_t _sendMutex;
+        SemaphoreHandle_t sendMutex_;
         
         void init();
 
@@ -37,13 +37,13 @@ namespace web_server
 
         bool canHandle(AsyncWebServerRequest *request) override
         {
-            return request->method() == HTTP_GET && request->url() == this->_url;
+            return request->method() == HTTP_GET && request->url() == this->url_;
         }
 
         void handleRequest(AsyncWebServerRequest *request) override;
 
 
-        void onConnect(connect_handler_t cb) { this->_on_connect = std::move(cb); }
+        void onConnect(connect_handler_t cb) { this->on_connect_ = std::move(cb); }
 
         /// @brief Send message to all event sessions
         /// @param message
@@ -71,4 +71,4 @@ namespace web_server
         void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0);
     };
 
-} // namespace web_server_idf
+} // namespace yaidfws

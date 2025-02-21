@@ -5,7 +5,7 @@
 
 #include "web_server_container.h"
 
-namespace web_server
+namespace yaidfws
 {
 
 #ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
@@ -26,9 +26,9 @@ namespace web_server
             handler = new AuthMiddlewareHandler(handler, &credentials_);
         }
         this->handlers_.push_back(handler);
-        if (this->_IDFWebServer != nullptr)
+        if (this->IDFWebServer_ != nullptr)
         {
-            this->_IDFWebServer->addHandler(handler);
+            this->IDFWebServer_->addHandler(handler);
         }
     }
 
@@ -183,4 +183,4 @@ namespace web_server
 #endif
     }
 
-} // namespace web_server
+} // namespace yaidfws

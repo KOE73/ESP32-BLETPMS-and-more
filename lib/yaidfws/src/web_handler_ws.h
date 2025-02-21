@@ -12,7 +12,7 @@
 
 #include "web_handler.h"
 
-namespace web_server
+namespace yaidfws
 {
 
     class AsyncWSSourceResponse;
@@ -24,10 +24,10 @@ namespace web_server
         using connect_handler_t = std::function<void(AsyncWSSourceResponse *)>;
 
     protected:
-        std::set<AsyncWSSourceResponse *> _ws_responses;
-        connect_handler_t _on_connect{};
+        std::set<AsyncWSSourceResponse *> ws_responses_;
+        connect_handler_t on_connect_{};
 
-        SemaphoreHandle_t _sendMutex;
+        SemaphoreHandle_t sendMutex_;
         void init();
 
     public:
@@ -42,7 +42,7 @@ namespace web_server
         /// @brief 
         ///     Cannot call client->send()
         /// @param cb 
-        void onConnect(connect_handler_t cb) { this->_on_connect = std::move(cb); }
+        void onConnect(connect_handler_t cb) { this->on_connect_ = std::move(cb); }
 
         /// @brief Send message to all event sessions
         /// @param message
@@ -51,7 +51,7 @@ namespace web_server
         /// @param reconnect
         void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0) const;
 
-        size_t count() const { return this->_ws_responses.size(); }
+        size_t count() const { return this->ws_responses_.size(); }
     };
 
     class AsyncWSSourceResponse
@@ -70,4 +70,4 @@ namespace web_server
         void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0);
     };
 
-} // namespace web_server_idf
+} // namespace yaidfws

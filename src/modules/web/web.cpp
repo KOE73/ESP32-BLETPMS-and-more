@@ -52,7 +52,7 @@ extern const int css_css_length;
 #include "web_handler_ws.h"
 #include "web_handler_api.h"
 
-using namespace web_server;
+using namespace yaidfws;
 
 // IDFWebServer aServer(80);
 WebServerContainer aServer(80);
