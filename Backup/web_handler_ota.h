@@ -9,7 +9,7 @@
 
 // #include "esphome/core/hal.h"
 #include "web_server_idf.h"
-#include "web_handler.h"
+#include "handler.h"
 
 namespace web_server
 {

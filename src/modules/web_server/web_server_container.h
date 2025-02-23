@@ -17,7 +17,7 @@
 // #include "esphome/core/hal.h"
 
 #include "web_server_idf.h"
-#include "web_handler_middleware.h"
+#include "handler_middleware.h"
 
 namespace web_server
 {

@@ -10,6 +10,8 @@
 #include "sys/queue.h"
 
 #include "web.hpp"
+
+#include "ArduinoJson.h"
 // #include "WebServer.hpp"
 
 // using WebServer::WebServer;
@@ -47,10 +49,10 @@ extern const int css_css_length;
 
 #include "web_server_idf.h"
 #include "web_server_container.h"
-#include "web_handler_1.h"
-#include "web_handler_events.h"
-#include "web_handler_ws.h"
-#include "web_handler_api.h"
+#include "handler_static.h"
+#include "handler_events.h"
+#include "handler_ws.h"
+#include "handler_api.h"
 
 using namespace web_server;
 
@@ -62,7 +64,11 @@ HandlerStaticUriText css_h(aServer, "/css.css", css_css_start, css_css_length);
 AsyncWebHandlerEventSource events_h(aServer, "/events");
 AsyncWebHandlerWSSource ws_h(aServer, "/ws");
 
+<<<<<<< HEAD
 HandlerApi handler_api;//aServer
+=======
+HandlerApi handler_api; // aServer
+>>>>>>> Web revert to main way. BLE
 
 // Could it be done through events, without direct calls?
 esp_err_t start_web_server(void)
@@ -90,15 +96,28 @@ esp_err_t start_web_server(void)
         {
             ESP_LOGI(TAG_WEB, "Task EVENT started!");
             int c = 0;
+
+            DynamicJsonDocument json(100);
+            std::string output;
+
             while (true)
             {
                 std::string ss = "step: ";
                 ss.append(std::to_string(c));
 
-                ESP_LOGI(TAG_WEB, "Task EVENT is running... [%s]", ss.c_str());
+                //ESP_LOGI(TAG_WEB, "Task EVENT is running... [%s]", ss.c_str());
 
                 events_h.send(ss.c_str());
                 ws_h.send(ss.c_str());
+
+                json["msgType"]="test";
+                json["id"] = c;
+
+                serializeJson(json, output);
+
+                events_h.send(output.c_str());
+                ws_h.send(output.c_str());
+
                 vTaskDelay(pdMS_TO_TICKS(3000));
                 c++;
             }

@@ -11,6 +11,7 @@
 
 // Теги для логирования
 static const char *TAG_BLE = "BLE";
+static const char *TAG_BLE_CALLBACK = "BLE_CB";
 
 // Pointer to User defined scan_params data structure. This memory space can not be freed until callback of set_scan_params
 esp_ble_scan_params_t scan_params = {
@@ -19,7 +20,9 @@ esp_ble_scan_params_t scan_params = {
     .scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
     .scan_interval = 0x50,
     .scan_window = 0x30,
-    .scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE};
+    //.scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE
+    .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE
+};
 
 // ====== BLE FUNCTIONS ======
 static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
@@ -27,7 +30,7 @@ static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_
     switch (event)
     {
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
-        ESP_LOGI(TAG_BLE, "Scan parameters set. Starting scan...");
+        ESP_LOGI(TAG_BLE_CALLBACK, "Scan parameters set. Starting scan...");
         esp_ble_gap_start_scanning(0); // 0 = scan indefinitely
         break;
 
@@ -35,20 +38,24 @@ static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_
     {
         // Too many strings out
         auto scan_result = param->scan_rst;
-        // if (scan_result.search_evt == ESP_GAP_SEARCH_INQ_RES_EVT)
-        //{
-        //     ESP_LOGI(TAG_BLE, "Found device: Addr: %02x:%02x:%02x:%02x:%02x:%02x, RSSI: %d",
-        //              scan_result.bda[0], scan_result.bda[1], scan_result.bda[2],
-        //              scan_result.bda[3], scan_result.bda[4], scan_result.bda[5],
-        //              scan_result.rssi);
-        // }
+        if (scan_result.search_evt == ESP_GAP_SEARCH_INQ_RES_EVT)
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "search_evt=ESP_GAP_SEARCH_INQ_RES_EVT  Found device: Addr: %02x:%02x:%02x:%02x:%02x:%02x, RSSI: %d",
+                     scan_result.bda[0], scan_result.bda[1], scan_result.bda[2],
+                     scan_result.bda[3], scan_result.bda[4], scan_result.bda[5],
+                     scan_result.rssi);
+        }
+        else
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_BLE_SCAN_RESULT_EVT search_evt=%i", scan_result.search_evt);
+        }
         break;
     }
 
     case ESP_GAP_BLE_EXT_ADV_REPORT_EVT:
     {
         auto p = param->ext_adv_report.params;
-        // ESP_LOGI(TAG_BLE, "Event ESP_GAP_BLE_EXT_ADV_REPORT_EVT %d", event);
+        ESP_LOGI(TAG_BLE_CALLBACK, "Event ESP_GAP_BLE_EXT_ADV_REPORT_EVT %d", event);
         uint8_t *adv_name = NULL;
         uint8_t adv_name_len = 0;
         uint8_t *adv_name_s = NULL;
@@ -60,38 +67,38 @@ static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_
         {
             std::string str((char *)adv_name);
             str.resize(adv_name_len);
-            ESP_LOGI(TAG_BLE, "Event adv_name long %s len %i", str.c_str(), str.length());
+            ESP_LOGI(TAG_BLE_CALLBACK, "Event adv_name long %s len %i", str.c_str(), str.length());
         }
         if (adv_name_s != NULL)
         {
             std::string str((char *)adv_name_s);
             str.resize(adv_name_s_len);
-            ESP_LOGI(TAG_BLE, "Event adv_name short %s len %i", str.c_str(), str.length());
+            ESP_LOGI(TAG_BLE_CALLBACK, "Event adv_name short %s len %i", str.c_str(), str.length());
         }
 
         uint8_t *adv_appearance;
         uint8_t adv_appearance_len = 0;
 
         adv_appearance = esp_ble_resolve_adv_data_by_type(p.adv_data, p.adv_data_len, ESP_BLE_AD_TYPE_APPEARANCE, &adv_appearance_len);
-        ESP_LOGI(TAG_BLE, "Appearance len %hhu", adv_appearance_len);
+        ESP_LOGI(TAG_BLE_CALLBACK, "Appearance len %hhu", adv_appearance_len);
 
-        ESP_LOGI(TAG_BLE, "SID %hhu %02X:%02X:%02X:%02X:%02X:%02X", p.sid, p.addr[0], p.addr[1], p.addr[2], p.addr[3], p.addr[4], p.addr[5]);
+        ESP_LOGI(TAG_BLE_CALLBACK, "SID %hhu %02X:%02X:%02X:%02X:%02X:%02X", p.sid, p.addr[0], p.addr[1], p.addr[2], p.addr[3], p.addr[4], p.addr[5]);
     }
     break;
 
     case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
         if (param->scan_start_cmpl.status == ESP_BT_STATUS_SUCCESS)
         {
-            ESP_LOGI(TAG_BLE, "BLE scan started successfully");
+            ESP_LOGI(TAG_BLE_CALLBACK, "BLE scan started successfully");
         }
         else
         {
-            ESP_LOGE(TAG_BLE, "Failed to start BLE scan");
+            ESP_LOGE(TAG_BLE_CALLBACK, "Failed to start BLE scan");
         }
         break;
 
     case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
-        ESP_LOGI(TAG_BLE, "BLE scan stopped");
+        ESP_LOGI(TAG_BLE_CALLBACK, "BLE scan stopped");
         break;
 
     default:
@@ -161,6 +168,8 @@ void ble_init(void)
         ESP_LOGE(TAG_BLE, "Failed esp_ble_gap_set_scan_params: %s", esp_err_to_name(ret));
         return;
     }
+
+    
 
     // esp_ble_gap_set_scan_params(&((esp_ble_scan_params_t)
     //{

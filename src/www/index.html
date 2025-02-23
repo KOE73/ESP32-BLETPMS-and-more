@@ -26,6 +26,7 @@
                 <input type="text" id="input2" placeholder="Введите сообщение">
                 <button onclick="sendMessage(2)">Отправить</button>
                 <h2>Messages:</h2>
+                <div id="test_id"></div>
                 <ul id="messageList2">
                     <!-- Сообщения будут отображаться здесь -->
                 </ul>
@@ -64,7 +65,7 @@
         socket1.onclose = function (event) { outMessage('Соединение закрыто', '', 'messageList1'); };
 
         socket2.onopen = function () { outMessage('Соединение с сервером установлено', '', 'messageList2'); };
-        socket2.onmessage = function (event) { outMessage('Получено сообщение', event.data, 'messageList2'); };
+        socket2.onmessage = function (event) { outMessage2(event); };
         socket2.onerror = function (error) { outMessage('Ошибка WebSocket', error, 'messageList2'); };
         socket2.onclose = function (event) { outMessage('Соединение закрыто', '', 'messageList2'); };
 
@@ -72,10 +73,11 @@
 
         function sendMessage(x) {
             switch (x) {
-                case 1: sendMessage2('input1', 'messageList1', socket1);break;
-                case 2: sendMessage2('input2', 'messageList2', socket2);break;
+                case 1: sendMessage2('input1', 'messageList1', socket1); break;
+                case 2: sendMessage2('input2', 'messageList2', socket2); break;
             }
         }
+
         function sendMessage2(inpitKey, listKey, socket) {
             const message = document.getElementById(inpitKey).value;
             if (message && socket.readyState === WebSocket.OPEN) {
@@ -97,6 +99,16 @@
             const li = document.createElement('li');
             li.textContent = msg;
             messageList.appendChild(li);
+        }
+
+        function outMessage2(event) {
+            const data = JSON.parse(event.data);
+            switch (data.msgType) {
+                case 'test':
+                    const test_id = document.getElementById('test_id');
+                    test_id.innerText = data.id;
+                    break;
+            }
         }
     </script>
 
