@@ -17,7 +17,7 @@ static const char *TAG_EVENT_HANDLER = "EVENT_HANDLER";
 static const char *TAG_RESPONSE = "WS_RESPONSE";
 #define LOG_WEB2_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_BLUE, LOG_ANSI_COLOR_BG_CYAN)
 
-namespace web_server
+namespace yaidfws
 {
 
 #define CRLF_STR "\r\n"
@@ -62,7 +62,7 @@ namespace web_server
 
         auto httpd_req = request->getHttpdReq();
 
-        if (httpd_req->method == HTTP_GET && request->url() == _url)
+        if (httpd_req->method == HTTP_GET && request->url() == url_)
         {
             ESP_LOGI(TAG_RESPONSE, "AsyncWebHandlerWSSource::canHandle 2 method=%i url='%s'", request->method(), request->url().c_str());
             return true;
@@ -86,9 +86,9 @@ namespace web_server
             auto *rsp = new AsyncWSSourceResponse(request, this); // NOLINT(cppcoreguidelines-owning-memory)
 
             // External init, if any be
-            if (this->_on_connect)
+            if (this->on_connect_)
             {
-                this->_on_connect(rsp);
+                this->on_connect_(rsp);
             }
 
             this->_ws_responses.insert(rsp);
@@ -230,4 +230,4 @@ namespace web_server
 
 #pragma endregion
 
-} // namespace web_server_idf
+} // namespace yaidfws_idf

@@ -19,7 +19,7 @@
 #include "web_server_idf.h"
 #include "handler_middleware.h"
 
-namespace web_server
+namespace yaidfws
 {
     // ??? Разобраться с h
     class HandlerApi;
@@ -130,4 +130,4 @@ namespace web_server
 #pragma endregion
     };
 
-} // namespace web_server
+} // namespace yaidfws

@@ -12,7 +12,7 @@
 
 #include "handler.h"
 
-namespace web_server
+namespace yaidfws
 {
 
     class AsyncWSSourceResponse;
@@ -25,17 +25,14 @@ namespace web_server
 
     protected:
         std::set<AsyncWSSourceResponse *> _ws_responses;
-        connect_handler_t _on_connect{};
+        connect_handler_t on_connect_{};
 
         SemaphoreHandle_t _sendMutex;
         void init();
 
     public:
-<<<<<<< HEAD:src/modules/web_server/web_handler_ws.h
-=======
 
     
->>>>>>> Web revert to main way. BLE:lib/yaidfws/src/handler_ws.h
         AsyncWebHandlerWSSource(std::string url);
         AsyncWebHandlerWSSource(IHandlerContainer &handlerContainer, std::string url);
         ~AsyncWebHandlerWSSource() override;
@@ -47,11 +44,7 @@ namespace web_server
         /// @brief 
         ///     Cannot call client->send()
         /// @param cb 
-<<<<<<< HEAD:src/modules/web_server/web_handler_ws.h
-        void onConnect(connect_handler_t cb) { this->_on_connect = std::move(cb); }
-=======
         void onConnect(connect_handler_t cb) { this->on_connect_ = std::move(cb); }
->>>>>>> Web revert to main way. BLE:lib/yaidfws/src/handler_ws.h
 
         /// @brief Send message to all event sessions
         /// @param message
@@ -79,4 +72,4 @@ namespace web_server
         void send(const char *message, uint32_t id = 0, uint32_t reconnect = 0);
     };
 
-} // namespace web_server_idf
+} // namespace yaidfws_idf

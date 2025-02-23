@@ -5,7 +5,7 @@
 
 #include "web_server_container.h"
 
-namespace web_server
+namespace yaidfws
 {
 
 #ifdef USE_WEBSERVER_PRIVATE_NETWORK_ACCESS
@@ -183,4 +183,4 @@ namespace web_server
 #endif
     }
 
-} // namespace web_server
+} // namespace yaidfws

@@ -28,7 +28,7 @@
 #include "esphome/components/climate/climate.h"
 #endif
 
-namespace web_server
+namespace yaidfws
 {
 
   static const char *const TAG = "web_server";
@@ -147,6 +147,6 @@ namespace web_server
 
 #pragma endregion
 
-} // namespace web_server
+} // namespace yaidfws
 
 #endif // USE_WEBSERVER

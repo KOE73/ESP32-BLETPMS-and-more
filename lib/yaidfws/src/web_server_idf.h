@@ -10,7 +10,7 @@
 
 #include "handler.h"
 
-namespace web_server
+namespace yaidfws
 {
 
 #define F(string_literal) (string_literal)
@@ -76,4 +76,4 @@ namespace web_server
   };
 
 
-} // namespace web_server_idf
+} // namespace yaidfws_idf

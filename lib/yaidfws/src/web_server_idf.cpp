@@ -13,7 +13,7 @@
 static const char *TAG_WEB2_SERVER = "WEB2_SERVER";
 #define LOG_WEB2_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_BLUE, LOG_ANSI_COLOR_BG_CYAN)
 
-namespace web_server
+namespace yaidfws
 {
 
 #ifndef HTTPD_409
@@ -137,6 +137,7 @@ namespace web_server
     }
 
     AsyncWebServerRequest req(r, std::move(post_query));
+    // TODO AsyncWebServerRequest в начало и воспользоваться кодом из него выше
     return static_cast<IDFWebServer *>(r->user_ctx)->request_handler_(&req);
   }
 
@@ -167,4 +168,4 @@ namespace web_server
     return ESP_ERR_NOT_FOUND;
   }
 
-} // namespace web_server_idf
+} // namespace yaidfws_idf

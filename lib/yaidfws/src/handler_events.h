@@ -12,7 +12,7 @@
 
 #include "handler.h"
 
-namespace web_server
+namespace yaidfws
 {
 
     class AsyncEventSourceResponse;
@@ -24,15 +24,9 @@ namespace web_server
 
     protected:
         std::set<AsyncEventSourceResponse *> _event_responses;
-<<<<<<< HEAD:src/modules/web_server/web_handler_events.h
-        connect_handler_t _on_connect{};
-
-        SemaphoreHandle_t _sendMutex;
-=======
         connect_handler_t on_connect_{};
 
         SemaphoreHandle_t sendMutex_;
->>>>>>> Web revert to main way. BLE:lib/yaidfws/src/handler_events.h
         
         void init();
 
@@ -43,17 +37,13 @@ namespace web_server
 
         bool canHandle(AsyncWebServerRequest *request) override
         {
-            return request->method() == HTTP_GET && request->url() == this->_url;
+            return request->method() == HTTP_GET && request->url() == this->url_;
         }
 
         void handleRequest(AsyncWebServerRequest *request) override;
 
 
-<<<<<<< HEAD:src/modules/web_server/web_handler_events.h
-        void onConnect(connect_handler_t cb) { this->_on_connect = std::move(cb); }
-=======
         void onConnect(connect_handler_t cb) { this->on_connect_ = std::move(cb); }
->>>>>>> Web revert to main way. BLE:lib/yaidfws/src/handler_events.h
 
         /// @brief Send message to all event sessions
         /// @param message
@@ -81,4 +71,4 @@ namespace web_server
         void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0);
     };
 
-} // namespace web_server_idf
+} // namespace yaidfws_idf

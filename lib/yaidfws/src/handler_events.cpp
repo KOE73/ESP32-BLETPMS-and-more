@@ -17,7 +17,7 @@ static const char *TAG_EVENT_HANDLER = "EVENT_HANDLER";
 static const char *TAG_RESPONSE = "EVENT_RESPONSE";
 #define LOG_WEB2_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_BLUE, LOG_ANSI_COLOR_BG_CYAN)
 
-namespace web_server
+namespace yaidfws
 {
 
 #define CRLF_STR "\r\n"
@@ -56,9 +56,9 @@ namespace web_server
         // Make new AsyncEventSourceResponse
         auto *rsp = new AsyncEventSourceResponse(request, this); // NOLINT(cppcoreguidelines-owning-memory)
         // External init, if any be
-        if (this->_on_connect)
+        if (this->on_connect_)
         {
-            this->_on_connect(rsp);
+            this->on_connect_(rsp);
         }
         // Store in sessions
         this->_event_responses.insert(rsp);
@@ -178,4 +178,4 @@ namespace web_server
 
 #pragma endregion
 
-} // namespace web_server_idf
+} // namespace yaidfws_idf
