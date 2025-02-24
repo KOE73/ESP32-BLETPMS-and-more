@@ -54,7 +54,7 @@ extern const int css_css_length;
 #include "handler_ws.h"
 #include "handler_api.h"
 
-using namespace web_server;
+using namespace yaidfws;
 
 // IDFWebServer aServer(80);
 WebServerContainer aServer(80);
@@ -64,11 +64,7 @@ HandlerStaticUriText css_h(aServer, "/css.css", css_css_start, css_css_length);
 AsyncWebHandlerEventSource events_h(aServer, "/events");
 AsyncWebHandlerWSSource ws_h(aServer, "/ws");
 
-<<<<<<< HEAD
-HandlerApi handler_api;//aServer
-=======
 HandlerApi handler_api; // aServer
->>>>>>> Web revert to main way. BLE
 
 // Could it be done through events, without direct calls?
 esp_err_t start_web_server(void)

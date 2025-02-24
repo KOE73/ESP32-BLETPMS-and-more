@@ -14,6 +14,7 @@
 
 #include "handler.h"
 #include "web_response.h"
+#include "web_url_match.hpp"
 
 namespace yaidfws
 {

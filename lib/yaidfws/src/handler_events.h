@@ -23,7 +23,7 @@ namespace yaidfws
         using connect_handler_t = std::function<void(AsyncEventSourceResponse *)>;
 
     protected:
-        std::set<AsyncEventSourceResponse *> _event_responses;
+        std::set<AsyncEventSourceResponse *> event_responses_;
         connect_handler_t on_connect_{};
 
         SemaphoreHandle_t sendMutex_;
@@ -52,7 +52,7 @@ namespace yaidfws
         /// @param reconnect
         void send(const char *message, const char *event = nullptr, uint32_t id = 0, uint32_t reconnect = 0) const;
 
-        size_t count() const { return this->_event_responses.size(); }
+        size_t count() const { return this->event_responses_.size(); }
     };
 
     class AsyncEventSourceResponse

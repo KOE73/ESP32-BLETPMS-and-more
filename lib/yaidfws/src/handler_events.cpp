@@ -38,14 +38,14 @@ namespace yaidfws
     
     void AsyncWebHandlerEventSource::init()
     {
-        _sendMutex = xSemaphoreCreateMutex();
+        sendMutex_ = xSemaphoreCreateMutex();
     }
 
     AsyncWebHandlerEventSource::~AsyncWebHandlerEventSource()
     {
         ESP_LOGI(TAG_EVENT_HANDLER, "AsyncWebHandlerEventSource ~!~~~~~~~~~~~~~~~~~~~~~~");
 
-        for (auto *ses : this->_event_responses)
+        for (auto *ses : this->event_responses_)
         {
             delete ses; // NOLINT(cppcoreguidelines-owning-memory)
         }
@@ -61,20 +61,20 @@ namespace yaidfws
             this->on_connect_(rsp);
         }
         // Store in sessions
-        this->_event_responses.insert(rsp);
+        this->event_responses_.insert(rsp);
     }
 
     void AsyncWebHandlerEventSource::send(const char *message, const char *event, uint32_t id, uint32_t reconnect) const
     {
-        if (xSemaphoreTake(_sendMutex, portMAX_DELAY))
+        if (xSemaphoreTake(sendMutex_, portMAX_DELAY))
         {
-            // ESP_LOGI(TAG_EVENT_HANDLER, "AsyncWebHandlerEventSource::send sessions.count %i", this->_event_responses.size());
+            // ESP_LOGI(TAG_EVENT_HANDLER, "AsyncWebHandlerEventSource::send sessions.count %i", this->event_responses_.size());
 
-            for (auto *ses : this->_event_responses)
+            for (auto *ses : this->event_responses_)
             {
                 ses->send(message, event, id, reconnect);
             }
-            xSemaphoreGive(_sendMutex);
+            xSemaphoreGive(sendMutex_);
         }
     }
 
@@ -115,7 +115,7 @@ namespace yaidfws
         ESP_LOGI(TAG_RESPONSE, "AsyncEventSourceResponse::destroy !!!!!");
 
         auto *rsp = static_cast<AsyncEventSourceResponse *>(ptr);
-        rsp->_eventSource->_event_responses.erase(rsp);
+        rsp->_eventSource->event_responses_.erase(rsp);
         delete rsp; // NOLINT(cppcoreguidelines-owning-memory)
     }
 
