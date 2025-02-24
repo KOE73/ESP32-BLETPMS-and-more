@@ -2,6 +2,8 @@ import gzip
 import shutil
 from pathlib import Path
 
+print("Script GZ runing!")  # Проверка запуска
+
 # Пути к файлам, которые нужно сжать
 files_to_compress = ["src/www/index.html", "src/www/css.css"]
 
@@ -16,7 +18,7 @@ def compress_files():
         with open(input_path, "rb") as f_in, gzip.open(output_path, "wb") as f_out:
             shutil.copyfileobj(f_in, f_out)
 
-        print(f"✔ Сжат: {output_path}")
+        print(f"GZiped: {output_path}")
 
 # Выполняем сжатие перед сборкой
 compress_files()

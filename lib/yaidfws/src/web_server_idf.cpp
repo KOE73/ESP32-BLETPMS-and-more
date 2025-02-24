@@ -7,7 +7,7 @@
 
 #include "esp_tls_crypto.h"
 
-#include "utils.h"
+//#include "utils.h"
 #include "web_server_idf.h"
 
 static const char *TAG_WEB2_SERVER = "WEB2_SERVER";
@@ -97,7 +97,9 @@ namespace yaidfws
     // ESP_LOGVV(TAG, "Enter AsyncWebServer::request_post_handler. uri=%s", r->uri);
     ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "Enter AsyncWebServer::request_post_handler. uri=%s", r->uri);
 
-    auto content_type = request_get_header(r, "Content-Type");
+    AsyncWebServerRequest req(r);
+
+    auto content_type = req.request_get_header("Content-Type");
     if (content_type.has_value() && *content_type != "application/x-www-form-urlencoded")
     {
       ESP_LOGW(TAG, "Only application/x-www-form-urlencoded supported for POST request");
@@ -105,7 +107,7 @@ namespace yaidfws
       return IDFWebServer::request_get_handler(r);
     }
 
-    if (!request_has_header(r, "Content-Length"))
+    if (!req.request_has_header("Content-Length"))
     {
       ESP_LOGW(TAG, "Content length is requred for post: %s", r->uri);
       httpd_resp_send_err(r, HTTPD_411_LENGTH_REQUIRED, nullptr);
@@ -136,7 +138,8 @@ namespace yaidfws
       }
     }
 
-    AsyncWebServerRequest req(r, std::move(post_query));
+    // AsyncWebServerRequest req(r,std::move(post_query) );
+    req.setPostQuery(std::move(post_query));
     // TODO AsyncWebServerRequest в начало и воспользоваться кодом из него выше
     return static_cast<IDFWebServer *>(r->user_ctx)->request_handler_(&req);
   }

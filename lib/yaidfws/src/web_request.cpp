@@ -9,7 +9,7 @@
 
 #include "esp_tls_crypto.h"
 
-#include "utils.h"
+//#include "utils.h"
 #include "web_server_idf.h"
 
 static const char *TAG_WEB2_SERVER = "WEB2_SERVER";
@@ -38,7 +38,7 @@ namespace yaidfws
 
     bool AsyncWebServerRequest::hasHeader(const char *name) const
     {
-        // return request_has_header(getHttpdReq(), name);
+        // return request_has_header(httpd_req_, name);
         return httpd_req_get_hdr_value_len(httpd_req_, name);
     }
 
@@ -77,7 +77,7 @@ namespace yaidfws
 
     void AsyncWebServerRequest::send(AsyncWebServerResponse *response)
     {
-        httpd_resp_send(getHttpdReq(), response->get_content_data(), response->get_content_size());
+        httpd_resp_send(httpd_req_, response->get_content_data(), response->get_content_size());
     }
 
     void AsyncWebServerRequest::send(int code, const char *content_type, const char *content)
@@ -85,37 +85,37 @@ namespace yaidfws
         this->init_response_(nullptr, code, content_type);
         if (content)
         {
-            httpd_resp_send(getHttpdReq(), content, HTTPD_RESP_USE_STRLEN);
+            httpd_resp_send(httpd_req_, content, HTTPD_RESP_USE_STRLEN);
         }
         else
         {
-            httpd_resp_send(getHttpdReq(), nullptr, 0);
+            httpd_resp_send(httpd_req_, nullptr, 0);
         }
     }
 
     void AsyncWebServerRequest::redirect(const std::string &url)
     {
-        httpd_resp_set_status(getHttpdReq(), "302 Found");
-        httpd_resp_set_hdr(getHttpdReq(), "Location", url.c_str());
-        httpd_resp_send(getHttpdReq(), nullptr, 0);
+        httpd_resp_set_status(httpd_req_, "302 Found");
+        httpd_resp_set_hdr(httpd_req_, "Location", url.c_str());
+        httpd_resp_send(httpd_req_, nullptr, 0);
     }
 
     void AsyncWebServerRequest::init_response_(AsyncWebServerResponse *rsp, int code, const char *content_type)
     {
-        httpd_resp_set_status(getHttpdReq(), code == 200   ? HTTPD_200
+        httpd_resp_set_status(httpd_req_, code == 200   ? HTTPD_200
                                              : code == 404 ? HTTPD_404
                                              : code == 409 ? HTTPD_409
                                                            : std::to_string(code).c_str());
 
         if (content_type && *content_type)
         {
-            httpd_resp_set_type(getHttpdReq(), content_type);
+            httpd_resp_set_type(httpd_req_, content_type);
         }
-        httpd_resp_set_hdr(getHttpdReq(), "Accept-Ranges", "none");
+        httpd_resp_set_hdr(httpd_req_, "Accept-Ranges", "none");
 
         for (const auto &pair : DefaultHeaders::Instance().headers_)
         {
-            httpd_resp_set_hdr(getHttpdReq(), pair.first.c_str(), pair.second.c_str());
+            httpd_resp_set_hdr(httpd_req_, pair.first.c_str(), pair.second.c_str());
         }
 
         delete this->rsp_;
@@ -160,11 +160,12 @@ namespace yaidfws
 
     void AsyncWebServerRequest::requestAuthentication(const char *realm) const
     {
-        httpd_resp_set_hdr(getHttpdReq(), "Connection", "keep-alive");
-        // TODO !!!!
-        // auto auth_val = str_sprintf("Basic realm=\"%s\"", realm ? realm : "Login Required");
-        // httpd_resp_set_hdr(getHttpdReq(), "WWW-Authenticate", auth_val.c_str());
-        httpd_resp_send_err(getHttpdReq(), HTTPD_401_UNAUTHORIZED, nullptr);
+        httpd_resp_set_hdr(httpd_req_, "Connection", "keep-alive");
+        
+         //auto auth_val = str_sprintf("Basic realm=\"%s\"", realm ? realm : "Login Required");
+         auto auth_val =std::format("Basic realm=\"{}\"", realm ? realm : "Login Required");
+         httpd_resp_set_hdr(httpd_req_, "WWW-Authenticate", auth_val.c_str());
+        httpd_resp_send_err(httpd_req_, HTTPD_401_UNAUTHORIZED, nullptr);
     }
 
     AsyncWebParameter *AsyncWebServerRequest::getParam(const std::string &name)
@@ -178,7 +179,7 @@ namespace yaidfws
         std::optional<std::string> val = query_key_value(this->post_query_, name);
         if (!val.has_value())
         {
-            auto url_query = request_get_url_query(getHttpdReq());
+            auto url_query = request_get_url_query();
             if (url_query.has_value())
             {
                 val = query_key_value(url_query.value(), name);
@@ -195,6 +196,7 @@ namespace yaidfws
     }
 
 #pragma region From Utils
+
     size_t parse_hex(const char *str, size_t length, uint8_t *data, size_t count)
     {
         uint8_t val;
@@ -253,11 +255,11 @@ namespace yaidfws
         *ptr = *str;
     }
 
-    bool AsyncWebServerRequest::request_has_header(httpd_req_t *req, const char *name) { return httpd_req_get_hdr_value_len(req, name); }
+    bool AsyncWebServerRequest::request_has_header( const char *name) { return httpd_req_get_hdr_value_len(httpd_req_, name); }
 
-    std::optional<std::string> AsyncWebServerRequest::request_get_header(httpd_req_t *req, const char *name)
+    std::optional<std::string> AsyncWebServerRequest::request_get_header(const char *name)
     {
-        size_t len = httpd_req_get_hdr_value_len(req, name);
+        size_t len = httpd_req_get_hdr_value_len(httpd_req_, name);
         if (len == 0)
         {
             return {};
@@ -266,7 +268,7 @@ namespace yaidfws
         std::string str;
         str.resize(len);
 
-        auto res = httpd_req_get_hdr_value_str(req, name, &str[0], len + 1);
+        auto res = httpd_req_get_hdr_value_str(httpd_req_, name, &str[0], len + 1);
         if (res != ESP_OK)
         {
             return {};
@@ -275,9 +277,9 @@ namespace yaidfws
         return {str};
     }
 
-    std::optional<std::string> AsyncWebServerRequest::request_get_url_query(httpd_req_t *req)
+    std::optional<std::string> AsyncWebServerRequest::request_get_url_query()
     {
-        auto len = httpd_req_get_url_query_len(req);
+        auto len = httpd_req_get_url_query_len(httpd_req_);
         if (len == 0)
         {
             return {};
@@ -286,7 +288,7 @@ namespace yaidfws
         std::string str;
         str.resize(len);
 
-        auto res = httpd_req_get_url_query_str(req, &str[0], len + 1);
+        auto res = httpd_req_get_url_query_str(httpd_req_, &str[0], len + 1);
         if (res != ESP_OK)
         {
             ESP_LOGW(TAG, "Can't get query for request: %s", esp_err_to_name(res));

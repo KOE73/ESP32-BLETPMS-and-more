@@ -9,7 +9,7 @@
 
 #include "esp_tls_crypto.h"
 
-#include "utils.h"
+//#include "utils.h"
 #include "web_server_idf.h"
 #include "web_response.h"
 
@@ -37,7 +37,7 @@ static const char *TAG_WEB2_SERVER = "WEB2_SERVER";
       httpd_resp_set_hdr(this->req_->getHttpdReq(), name, value);
     }
 
-    void AsyncResponseStream::print(float value) { this->print(to_string(value)); }
+    void AsyncResponseStream::print(float value) { this->print(std::to_string(value)); }
 
     void AsyncResponseStream::printf(const char *fmt, ...)
     {

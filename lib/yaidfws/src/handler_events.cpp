@@ -9,7 +9,7 @@
 
 #include "esp_tls_crypto.h"
 
-#include "utils.h"
+//#include "utils.h"
 #include "web_server_idf.h"
 #include "handler_events.h"
 
@@ -166,7 +166,8 @@ namespace yaidfws
         // Manual analog httpd_resp_send_chunk(_httpd_handle, ev.c_str(), ev.size());
 
         // Sending chunked content prelude
-        auto cs = str_snprintf("%x" CRLF_STR, 4 * sizeof(ev.size()) + CRLF_LEN, ev.size());
+        //auto cs = str_snprintf("%x" CRLF_STR, 4 * sizeof(ev.size()) + CRLF_LEN, ev.size());
+        auto cs = std::format("{:x}" CRLF_STR, ev.size());
         httpd_socket_send(this->_httpd_handle, this->_sockfd, cs.c_str(), cs.size(), 0);
 
         // Sendiing content chunk

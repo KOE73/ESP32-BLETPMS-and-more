@@ -1,6 +1,7 @@
 #pragma once
 
 #include <esp_http_server.h>
+#include <esp_log.h>
 
 #include <functional>
 #include <map>
@@ -10,7 +11,7 @@
 
 #include <optional>
 
-//#include "optional.h"
+// #include "optional.h"
 
 #include "handler.h"
 #include "web_response.h"
@@ -19,22 +20,18 @@
 namespace yaidfws
 {
 
-  class AsyncWebParameter
-  {
-  protected:
-    std::string value_;
+    class AsyncWebParameter
+    {
+    protected:
+        std::string value_;
 
-  public:
-    AsyncWebParameter(std::string value) : value_(std::move(value)) {}
-    const std::string &value() const { return this->value_; }
-  };
+    public:
+        AsyncWebParameter(std::string value) : value_(std::move(value)) {}
+        const std::string &value() const { return this->value_; }
+    };
 
-
-
-
-
-  // TODO перенес код из утилит сюда. сделал отложенный UrlParser, по мере необходимости
-  class AsyncWebServerRequest
+    // TODO перенес код из утилит сюда. сделал отложенный UrlParser, по мере необходимости
+    class AsyncWebServerRequest
     {
         friend class IDFWebServer;
 
@@ -50,6 +47,8 @@ namespace yaidfws
 
         AsyncWebServerRequest(httpd_req_t *req, std::string post_query)
             : httpd_req_(req), post_query_(std::move(post_query)) {}
+            
+        void setPostQuery(std::string post_query) { post_query_ = std::move(post_query); }
 
         void init_response_(AsyncWebServerResponse *rsp, int code, const char *content_type);
 
@@ -63,9 +62,9 @@ namespace yaidfws
         {
             if (!parser_)
             {
-                //parser_ = std::make_unique<UrlParserRegex>(httpd_req_->uri); 
-                parser_ = std::make_unique<UrlParserManual>(httpd_req_->uri); 
-                ESP_LOGI("REQUEST","getParser %s", parser_->toStr().c_str());
+                // parser_ = std::make_unique<UrlParserRegex>(httpd_req_->uri);
+                parser_ = std::make_unique<UrlParserManual>(httpd_req_->uri);
+                ESP_LOGI("REQUEST", "getParser %s", parser_->toStr().c_str());
             }
             return *parser_;
         }
@@ -77,12 +76,16 @@ namespace yaidfws
         int getMethod() const { return httpd_req_->method; }
         httpd_req_t *getHttpdReq() const { return httpd_req_; }
 
-        bool request_has_header(httpd_req_t *req, const char *name);
-        std::optional<std::string> request_get_header(httpd_req_t *req, const char *name);
+#pragma region Finction from IDF
+        bool request_has_header(const char *name);
+        std::optional<std::string> request_get_header(const char *name);
+
         [[deprecated("Use UrlParser instead")]]
-        std::optional<std::string> request_get_url_query(httpd_req_t *req);
+        std::optional<std::string> request_get_url_query();
+        
         [[deprecated("Use UrlParser instead")]]
         std::optional<std::string> query_key_value(const std::string &query_url, const std::string &key);
+#pragma endregion
 
         std::optional<std::string> get_header(const char *name) const;
         bool hasHeader(const char *name) const;
