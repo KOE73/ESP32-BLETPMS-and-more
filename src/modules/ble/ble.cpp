@@ -21,8 +21,26 @@ esp_ble_scan_params_t scan_params = {
     .scan_interval = 0x50,
     .scan_window = 0x30,
     //.scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE
-    .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE
+    .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE};
+
+esp_ble_ext_scan_params_t ext_scan_params = {
+    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
+    .filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
+    .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE,
+    .cfg_mask = ESP_BLE_GAP_EXT_SCAN_CFG_UNCODE_MASK | ESP_BLE_GAP_EXT_SCAN_CFG_CODE_MASK,
+    .uncoded_cfg = {BLE_SCAN_TYPE_ACTIVE, 40, 40},
+    .coded_cfg = {BLE_SCAN_TYPE_ACTIVE, 40, 40},
 };
+// esp_ble_ext_scan_params_t ext_scan_params = {
+//     .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
+//     .filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
+//     .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE,
+//     .phy_configs = {
+//         { .scan_interval = 0x50, .scan_window = 0x30 }, // PHY 1M для BLE 4.x
+//         { .scan_interval = 0x50, .scan_window = 0x30 }, // PHY 2M для BLE 5.0
+//         { .scan_interval = 0x50, .scan_window = 0x30 }  // PHY Coded для BLE 5.0
+//     }
+// };
 
 // ====== BLE FUNCTIONS ======
 static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
@@ -30,8 +48,21 @@ static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_
     switch (event)
     {
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
-        ESP_LOGI(TAG_BLE_CALLBACK, "Scan parameters set. Starting scan...");
-        esp_ble_gap_start_scanning(0); // 0 = scan indefinitely
+        if (param->scan_param_cmpl.status == ESP_OK)
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "Scan parameters set. Starting scan...");
+            // esp_ble_gap_start_scanning(0); // 0 = scan indefinitely
+            esp_ble_gap_start_ext_scan(30000, 0); // Начать расширенное сканирование
+        }
+        else
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "Failed to set extended scan parameters: %s\n", esp_err_to_name(param->scan_param_cmpl.status));
+        }
+
+        break;
+
+    case ESP_GAP_BLE_EXT_ADV_DATA_SET_COMPLETE_EVT:
+        ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_BLE_EXT_ADV_DATA_SET_COMPLETE_EVT");
         break;
 
     case ESP_GAP_BLE_SCAN_RESULT_EVT:
@@ -162,14 +193,21 @@ void ble_init(void)
     }
 
     // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/esp_gap_ble.html#_CPPv427esp_ble_gap_set_scan_paramsP21esp_ble_scan_params_t
-    ret = esp_ble_gap_set_scan_params(&scan_params);
+    // ret = esp_ble_gap_set_scan_params(&scan_params);
+    // if (ret != ESP_OK)
+    //{
+    //    ESP_LOGE(TAG_BLE, "Failed esp_ble_gap_set_scan_params: %s", esp_err_to_name(ret));
+    //    return;
+    //}
+
+    ret = esp_ble_gap_set_ext_scan_params(&ext_scan_params);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG_BLE, "Failed esp_ble_gap_set_scan_params: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG_BLE, "Failed esp_ble_gap_set_ext_scan_params: %s", esp_err_to_name(ret));
         return;
     }
 
-    
+    esp_ble_gap_start_ext_scan(0xFFFE, 0);
 
     // esp_ble_gap_set_scan_params(&((esp_ble_scan_params_t)
     //{

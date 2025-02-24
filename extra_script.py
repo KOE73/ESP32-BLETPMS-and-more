@@ -5,7 +5,7 @@ from pathlib import Path
 print("Script GZ runing!")  # Проверка запуска
 
 # Пути к файлам, которые нужно сжать
-files_to_compress = ["src/www/index.html", "src/www/css.css"]
+files_to_compress = ["src/www/ble.html", "src/www/index.html", "src/www/css.css"]
 
 def compress_files():
     for file in files_to_compress:

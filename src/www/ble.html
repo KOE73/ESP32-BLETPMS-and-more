@@ -1,0 +1,93 @@
+<html>
+<meta charset="UTF-8">
+<title>SSE Client</title>
+
+<head>
+    <link rel='stylesheet' href='css.css' type='text/css'>
+</head>
+
+<body>
+    It's body! Hello, ESP32 Web Server!
+
+    <div class="container">
+        <div class="column">
+            <div id="messages">
+                <input type="text" id="input1" placeholder="Введите сообщение">
+                <button onclick="sendMessage(1)">Отправить</button>
+                <h2>Messages:</h2>
+                <div>webTick: <span id="webTick_id"></span></div>
+                <div>mainTick: <span id="mainTick_id"></span></div>
+            </div>
+
+        </div>
+        <div class="column">
+            <div id="messages">
+
+            </div>
+        </div>
+
+    </div>
+
+
+    <script>
+        const origin = window.location.origin;
+        const host = window.location.host;
+
+        // WS -----------------------------------------
+
+        // Подключение к WebSocket-серверу
+        const socket1 = new WebSocket('ws://' + host + '/ws'); // Укажите IP вашего WebSocket-сервера
+
+        socket1.onopen = function () { outMessage('Соединение с сервером установлено', ''); };
+        socket1.onmessage = function (event) { outMessage('Получено сообщение', event.data); outMessage2(event); };
+        socket1.onerror = function (error) { outMessage('Ошибка WebSocket', error); };
+        socket1.onclose = function (event) { outMessage('Соединение закрыто', ''); };
+
+        function sendMessage(x) {
+            switch (x) {
+                case 1: sendMessage2('input1'); break;
+                case 2: sendMessage2('input2'); break;
+            }
+        }
+
+        function sendMessage2(inpitKey) {
+            const message = document.getElementById(inpitKey).value;
+            if (message && socket1.readyState === WebSocket.OPEN) {
+
+                // Формируем JSON-объект
+                const jsonData = {
+                    type: 'message',
+                    content: message,
+                    timestamp: new Date().toISOString()
+                };
+
+                // Преобразуем объект в строку JSON
+                const jsonString = JSON.stringify(jsonData);
+
+                socket1.send(jsonString);
+            } else {
+                alert('WebSocket соединение не установлено или сообщение пустое');
+            }
+            document.getElementById(inpitKey).value = ''; // Очистка поля ввода
+        }
+
+        function outMessage(msg, data) { console.log(msg + ':', data); }
+
+        function outMessage2(event) {
+            const data = JSON.parse(event.data);
+            switch (data.msgType) {
+                case 'webTick':
+                    div = document.getElementById('webTick_id');
+                    div.innerText = data.id;
+                    break;
+                case 'mainTick':
+                    div = document.getElementById('mainTick_id');
+                    div.innerText = data.id;
+                    break;
+            }
+        }
+    </script>
+
+</body>
+
+</html>

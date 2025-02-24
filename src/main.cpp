@@ -9,11 +9,15 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 
+#include "ArduinoJson.h"
+
 #include "nvs_flash.h"
 
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_event.h"
+
+#include "inner_events.h"
 
 #include "modules/composition_root.hpp"
 
@@ -66,10 +70,26 @@ extern "C" void app_main()
 
     vTaskDelay(200 / portTICK_PERIOD_MS);
 
-    for (int i= 0; i<50;i++)
+    DynamicJsonDocument json(100);
+    std::string output;
+
+    for (int i= 0; i<500;i++)
     {
         //printf("\033[03;38;05;222mMain loop running.\033[0m\n");
         //ESP_LOGI("XX","XX");
+
+        json["msgType"] = "mainTick";
+        json["id"] = i;
+
+        serializeJson(json, output);
+
+        esp_err_t ret = esp_event_post(
+            SYS_INNER_EVENT,
+            SYS_INNER_EVENT_WS_SEND_JSON,
+            output.c_str(),       // Указатель на данные строки
+            output.size() + 1,    // Размер с учётом '\0'
+            portMAX_DELAY
+        );
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
     esp_restart();

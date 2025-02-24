@@ -44,6 +44,10 @@ extern const char index_html_start[] asm("_binary_index_html_start");
 extern const int index_html_length;
 extern const uint8_t index_html_gz_start[] asm("_binary_index_html_gz_start");
 extern const int index_html_gz_length;
+
+extern const uint8_t ble_html_gz_start[] asm("_binary_ble_html_gz_start");
+extern const int ble_html_gz_length;
+
 extern const char css_css_start[] asm("_binary_css_css_start");
 extern const int css_css_length;
 
@@ -53,6 +57,7 @@ extern const int css_css_length;
 #include "handler_events.h"
 #include "handler_ws.h"
 #include "handler_api.h"
+#include "inner_events.h"
 
 using namespace yaidfws;
 
@@ -60,11 +65,36 @@ using namespace yaidfws;
 WebServerContainer aServer(80);
 HandlerStaticUriText index_h(aServer, "/index", index_html_start);
 HandlerStaticUriBin index2_h(aServer, "/index2", index_html_gz_start, index_html_gz_length, true);
+HandlerStaticUriBin ble_h(aServer, "/ble", ble_html_gz_start, ble_html_gz_length, true);
 HandlerStaticUriText css_h(aServer, "/css.css", css_css_start, css_css_length);
 AsyncWebHandlerEventSource events_h(aServer, "/events");
 AsyncWebHandlerWSSource ws_h(aServer, "/ws");
 
 HandlerApi handler_api; // aServer
+
+void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+    if (event_base == SYS_INNER_EVENT)
+    {
+        switch (event_id)
+        {
+        case SYS_INNER_EVENT_WS_SEND_JSON:
+            // ESP_LOGI(TAG_WEB, "SYS_INNER_EVENT_BASE:SYS_INNER_EVENT_WS_SEND_JSON");
+            const char *json_str = static_cast<const char *>(event_data);
+            ws_h.send(json_str);
+            break;
+        }
+    }
+    // ESP_HTTP_SERVER_EVENT
+    // WIFI_EVENT
+}
+
+void event_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+    if (event_base == SYS_INNER_EVENT)
+        return;
+    ESP_LOGI("EV_XxX", "%s : %li", event_base, event_id);
+}
 
 // Could it be done through events, without direct calls?
 esp_err_t start_web_server(void)
@@ -87,6 +117,9 @@ esp_err_t start_web_server(void)
                        // client->send("Hello on onConnect");
                    });
 
+    esp_event_handler_register(SYS_INNER_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL);
+    esp_event_handler_register(ESP_EVENT_ANY_BASE, ESP_EVENT_ANY_ID, event_handler_any, NULL);
+
     xTaskCreate(
         [](void *param)
         {
@@ -101,12 +134,12 @@ esp_err_t start_web_server(void)
                 std::string ss = "step: ";
                 ss.append(std::to_string(c));
 
-                //ESP_LOGI(TAG_WEB, "Task EVENT is running... [%s]", ss.c_str());
+                // ESP_LOGI(TAG_WEB, "Task EVENT is running... [%s]", ss.c_str());
 
                 events_h.send(ss.c_str());
                 ws_h.send(ss.c_str());
 
-                json["msgType"]="test";
+                json["msgType"] = "webTick";
                 json["id"] = c;
 
                 serializeJson(json, output);

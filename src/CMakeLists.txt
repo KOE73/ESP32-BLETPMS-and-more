@@ -18,6 +18,7 @@ idf_component_register(SRCS ${app_sources}
         "www/index.html"
         "www/css.css"
     EMBED_FILES
+        "www/.gz/ble.html.gz"
         "www/.gz/index.html.gz"
         "www/.gz/css.css.gz"
 )

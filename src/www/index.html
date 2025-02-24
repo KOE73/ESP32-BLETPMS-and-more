@@ -104,7 +104,7 @@
         function outMessage2(event) {
             const data = JSON.parse(event.data);
             switch (data.msgType) {
-                case 'test':
+                case 'webTick':
                     const test_id = document.getElementById('test_id');
                     test_id.innerText = data.id;
                     break;

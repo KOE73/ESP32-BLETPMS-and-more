@@ -9,7 +9,7 @@
 
 #include "esp_tls_crypto.h"
 
-//#include "utils.h"
+// #include "utils.h"
 #include "web_server_idf.h"
 #include "handler_ws.h"
 
@@ -125,7 +125,7 @@ namespace yaidfws
         ESP_LOGI(TAG_RESPONSE, "Received: %s", buf);
     }
 
-    void AsyncWebHandlerWSSource::send(const char *message,  uint32_t id, uint32_t reconnect) const
+    void AsyncWebHandlerWSSource::send(const char *message, uint32_t id, uint32_t reconnect) const
     {
         if (xSemaphoreTake(_sendMutex, portMAX_DELAY))
         {
@@ -133,7 +133,7 @@ namespace yaidfws
 
             for (auto *ses : this->_ws_responses)
             {
-                ses->send(message,  id, reconnect);
+                ses->send(message, id, reconnect);
             }
             xSemaphoreGive(_sendMutex);
         }
@@ -174,7 +174,7 @@ namespace yaidfws
         delete rsp; // NOLINT(cppcoreguidelines-owning-memory)
     }
 
-    void AsyncWSSourceResponse::send(const char *message,  uint32_t id, uint32_t reconnect)
+    void AsyncWSSourceResponse::send(const char *message, uint32_t id, uint32_t reconnect)
     {
         if (this->_sockfd == 0)
         {
@@ -204,28 +204,23 @@ namespace yaidfws
         //   ev.append(CRLF_STR, CRLF_LEN);
         // }
 
-        if (message && *message)
-        {
-             ev.append(message);
-        }
-
-        if (ev.empty())
+        if (!message)
         {
             return;
         }
 
-              // Отправляем ответ обратно клиенту
+        // Отправляем ответ обратно клиенту
         httpd_ws_frame_t ws_res;
         memset(&ws_res, 0, sizeof(httpd_ws_frame_t));
         ws_res.type = HTTPD_WS_TYPE_TEXT;
-        ws_res.payload = (uint8_t *)ev.c_str();
-        ws_res.len = ev.size();
+        ws_res.payload = (uint8_t *)message;
+        ws_res.len = strlen(message);
 
         auto err = httpd_ws_send_data(this->_httpd_handle, this->_sockfd, &ws_res);
         // httpd_ws_send_data_async(req, &ws_res);
         // httpd_ws_send_frame(req, &ws_res);
 
-        ESP_LOGI(TAG_RESPONSE, "httpd_ws_send_data %i", err);
+        //ESP_LOGI(TAG_RESPONSE, "httpd_ws_send_data %i", err);
     }
 
 #pragma endregion

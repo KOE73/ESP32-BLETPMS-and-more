@@ -67,7 +67,9 @@
         "bitset": "cpp",
         "regex": "cpp",
         "list": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "thread": "cpp",
+        "esp_event.h": "c"
     },
     "editor.minimap.scale": 2,
     "editor.minimap.showSlider": "always",
