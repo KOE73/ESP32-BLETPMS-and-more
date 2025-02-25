@@ -18,149 +18,57 @@ static const char *TAG_BLE_GATTC = "BLE_GATTC";
 
 void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report);
 void esp_gap_cb(esp_ble_gap_ext_adv_report_t &report);
+static void connectHR();
 std::string process_adv_data(const uint8_t *data, uint8_t data_len, esp_ble_adv_data_type type);
 
 // Pointer to User defined scan_params data structure. This memory space can not be freed until callback of set_scan_params
 esp_ble_scan_params_t scan_params = {
-    .scan_type = BLE_SCAN_TYPE_PASSIVE,
-    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
-    .scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
-    .scan_interval = 0x50,
-    .scan_window = 0x30,
-    //.scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE
-    .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE};
+    .scan_type = BLE_SCAN_TYPE_PASSIVE,              /* BLE_SCAN_TYPE_PASSIVE BLE_SCAN_TYPE_ACTIVE */
+    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,           /* BLE_ADDR_TYPE_PUBLIC BLE_ADDR_TYPE_RANDOM BLE_ADDR_TYPE_RPA_PUBLIC BLE_ADDR_TYPE_RPA_RANDOM */
+    .scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL, /* BLE_SCAN_FILTER_ALLOW_ALL BLE_SCAN_FILTER_ALLOW_ONLY_WLST BLE_SCAN_FILTER_ALLOW_UND_RPA_DIR BLE_SCAN_FILTER_ALLOW_WLIST_RPA_DIR */
+    .scan_interval = 0x50,                           /*  */
+    .scan_window = 0x30,                             /*  */
+    .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE      /* BLE_SCAN_DUPLICATE_DISABLE BLE_SCAN_DUPLICATE_ENABLE (BLE5)BLE_SCAN_DUPLICATE_ENABLE_RESET*/
+};
 
 esp_ble_ext_scan_params_t ext_scan_params = {
-    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
-    .filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
-    .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE,
-    .cfg_mask = ESP_BLE_GAP_EXT_SCAN_CFG_UNCODE_MASK | ESP_BLE_GAP_EXT_SCAN_CFG_CODE_MASK,
+    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,                                                 /* BLE_ADDR_TYPE_PUBLIC BLE_ADDR_TYPE_RANDOM BLE_ADDR_TYPE_RPA_PUBLIC BLE_ADDR_TYPE_RPA_RANDOM */
+    .filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,                                            /* BLE_SCAN_FILTER_ALLOW_ALL BLE_SCAN_FILTER_ALLOW_ONLY_WLST BLE_SCAN_FILTER_ALLOW_UND_RPA_DIR BLE_SCAN_FILTER_ALLOW_WLIST_RPA_DIR */
+    .scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE,                                          /* BLE_SCAN_DUPLICATE_DISABLE BLE_SCAN_DUPLICATE_ENABLE (BLE5)BLE_SCAN_DUPLICATE_ENABLE_RESET*/
+    .cfg_mask = ESP_BLE_GAP_EXT_SCAN_CFG_UNCODE_MASK | ESP_BLE_GAP_EXT_SCAN_CFG_CODE_MASK, /* Scan Advertisements on the LE1M PHY | on the LE coded PHY */
     .uncoded_cfg = {BLE_SCAN_TYPE_ACTIVE, 40, 40},
     .coded_cfg = {BLE_SCAN_TYPE_ACTIVE, 40, 40},
 };
 
 #define GATT_PROFILE_APP_ID 0
 
-// COOLSPO Address
-// static esp_bd_addr_t target_addr = {0x52, 0xfe, 0xf4, 0x4c, 0x2f, 0xc3};
-static esp_bd_addr_t target_addr = {0xc3, 0x2f, 0x4c, 0xf4, 0xfe, 0x52};
 static bool connect = false;
-static esp_gatt_if_t gattc_if;
-
-// esp_ble_ext_scan_params_t ext_scan_params = {
-//     .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
-//     .filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
-//     .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE,
-//     .phy_configs = {
-//         { .scan_interval = 0x50, .scan_window = 0x30 }, // PHY 1M для BLE 4.x
-//         { .scan_interval = 0x50, .scan_window = 0x30 }, // PHY 2M для BLE 5.0
-//         { .scan_interval = 0x50, .scan_window = 0x30 }  // PHY Coded для BLE 5.0
-//     }
-// };
+static esp_gatt_if_t gattc_if=ESP_GATT_IF_NONE;
+// COOLSPO Address
+static esp_bd_addr_t target_addr = {0xc3, 0x2f, 0x4c, 0xf4, 0xfe, 0x52};
+// static esp_bd_addr_t target_addr = {0x52, 0xfe, 0xf4, 0x4c, 0x2f, 0xc3};
+static uint16_t conn_id = 0;
+static uint16_t hr_handle = 0; // Дескриптор характеристики пульса
 
 // ====== BLE FUNCTIONS ======
-static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
+
+static bool ble_gap_callback_legacy(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
     switch (event)
     {
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
-        if (param->scan_param_cmpl.status == ESP_OK)
+        if (param->scan_param_cmpl.status == ESP_BT_STATUS_SUCCESS)
         {
             ESP_LOGI(TAG_BLE_CALLBACK, "Scan parameters set. Starting scan...");
-            esp_ble_gap_start_scanning(0); // 0 = scan indefinitely
+#ifdef CONFIG_BT_BLE_42_FEATURES_SUPPORTED
+            esp_ble_gap_start_scanning(30); // 0 = scan indefinitely
+#endif
         }
         else
         {
             ESP_LOGI(TAG_BLE_CALLBACK, "Failed to set extended scan parameters: %s\n", esp_err_to_name(param->scan_param_cmpl.status));
         }
-
-        break;
-
-    case ESP_GAP_BLE_SET_EXT_SCAN_PARAMS_COMPLETE_EVT:
-        if (param->scan_param_cmpl.status == ESP_OK)
-        {
-            ESP_LOGI(TAG_BLE_CALLBACK, "Scan Ex parameters set. Starting scan...");
-            esp_ble_gap_start_ext_scan(0xFFFE, 0); // Начать расширенное сканирование
-        }
-        else
-        {
-            ESP_LOGI(TAG_BLE_CALLBACK, "Failed to set extended scan parameters: %s\n", esp_err_to_name(param->scan_param_cmpl.status));
-        }
-
-        break;
-    case ESP_GAP_BLE_EXT_SCAN_START_COMPLETE_EVT:
-        ESP_LOGI(TAG_BLE_CALLBACK, "Started Ex scan...");
-        break;
-
-    case ESP_GAP_BLE_EXT_ADV_DATA_SET_COMPLETE_EVT:
-        ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_BLE_EXT_ADV_DATA_SET_COMPLETE_EVT ---------------------------------");
-        break;
-
-    case ESP_GAP_BLE_SCAN_RESULT_EVT:
-    {
-        // Too many strings out
-        auto scan_result = param->scan_rst;
-        if (scan_result.search_evt == ESP_GAP_SEARCH_INQ_RES_EVT)
-        {
-            ESP_LOGI(TAG_BLE_CALLBACK, "search_evt=ESP_GAP_SEARCH_INQ_RES_EVT  Found device: Addr: %02x:%02x:%02x:%02x:%02x:%02x, RSSI: %d",
-                     scan_result.bda[0], scan_result.bda[1], scan_result.bda[2],
-                     scan_result.bda[3], scan_result.bda[4], scan_result.bda[5],
-                     scan_result.rssi);
-        }
-        else
-        {
-            ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_BLE_SCAN_RESULT_EVT search_evt=%i", scan_result.search_evt);
-        }
-        break;
-    }
-
-    case ESP_GAP_BLE_EXT_ADV_REPORT_EVT:
-    {
-        // esp_ble_gap_ext_adv_report_t &report = param->ext_adv_report.params;
-        esp_ble_gap_ext_adv_report_t *report = &param->ext_adv_report.params;
-        ESP_LOGI(TAG_BLE_CALLBACK, "Event ===================================================================== ESP_GAP_BLE_EXT_ADV_REPORT_EVT %d", event);
-        process_ext_adv_report(*report);
-        esp_gap_cb(*report);
-
-        if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
-        {
-            ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
-            connect = true;
-            auto ret = esp_ble_gap_stop_ext_scan();
-            ESP_LOGI(TAG_BLE_CALLBACK, "Stop scan %s", esp_err_to_name(ret));
-
-            // esp_ble_gattc_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
-        }
-
-        //    uint8_t *adv_name = NULL;
-        // uint8_t adv_name_len = 0;
-        // uint8_t *adv_name_s = NULL;
-        // uint8_t adv_name_s_len = 0;
-        //
-        // adv_name = esp_ble_resolve_adv_data_by_type(report.adv_data, report.adv_data_len, ESP_BLE_AD_TYPE_NAME_CMPL, &adv_name_len);
-        // adv_name_s = esp_ble_resolve_adv_data_by_type(report.adv_data, report.adv_data_len, ESP_BLE_AD_TYPE_NAME_SHORT, &adv_name_s_len);
-        // if (adv_name != NULL)
-        //{
-        //    std::string str((char *)adv_name);
-        //    str.resize(adv_name_len);
-        //    ESP_LOGI(TAG_BLE_CALLBACK, "Event adv_name long %s len %i", str.c_str(), str.length());
-        //}
-        // if (adv_name_s != NULL)
-        //{
-        //    std::string str((char *)adv_name_s);
-        //    str.resize(adv_name_s_len);
-        //    ESP_LOGI(TAG_BLE_CALLBACK, "Event adv_name short %s len %i", str.c_str(), str.length());
-        //}
-        //
-        // uint8_t *adv_appearance;
-        // uint8_t adv_appearance_len = 0;
-        //
-        // adv_appearance = esp_ble_resolve_adv_data_by_type(report.adv_data, report.adv_data_len, ESP_BLE_AD_TYPE_APPEARANCE, &adv_appearance_len);
-        // ESP_LOGI(TAG_BLE_CALLBACK, "Appearance len %hhu", adv_appearance_len);
-        //
-        // ESP_LOGI(TAG_BLE_CALLBACK, "SID %hhu %02X:%02X:%02X:%02X:%02X:%02X", report.sid, report.addr[0], report.addr[1], report.addr[2], report.addr[3], report.addr[4], report.addr[5]);
-    }
-    break;
+        return true;
 
     case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
         if (param->scan_start_cmpl.status == ESP_BT_STATUS_SUCCESS)
@@ -169,12 +77,44 @@ static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_
         }
         else
         {
-            ESP_LOGE(TAG_BLE_CALLBACK, "Failed to start BLE scan");
+            ESP_LOGE(TAG_BLE_CALLBACK, "Failed to start BLE scan %i", (int)param->scan_start_cmpl.status);
         }
-        break;
+        return true;
+
+    case ESP_GAP_BLE_SCAN_RESULT_EVT:
+        switch (param->scan_rst.search_evt)
+        {
+
+        case ESP_GAP_SEARCH_INQ_RES_EVT: /*!< Inquiry result for a peer device. */
+            ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_SEARCH_INQ_RES_EVT Device found: %02x:%02x:%02x:%02x:%02x:%02x, RSSI: %d", ESP_BD_ADDR_HEX(param->scan_rst.bda), param->scan_rst.rssi);
+            ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, param->scan_rst.ble_adv, param->scan_rst.adv_data_len);
+            break;
+        case ESP_GAP_SEARCH_INQ_CMPL_EVT: /*!< Inquiry complete. */
+            ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_SEARCH_INQ_CMPL_EVT Scan completed");
+            break;
+        case ESP_GAP_SEARCH_DISC_RES_EVT: /*!< Discovery result for a peer device. */
+            ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_SEARCH_DISC_RES_EVT Discovery result for a peer device");
+            break;
+        case ESP_GAP_SEARCH_DISC_BLE_RES_EVT: /*!< Discovery result for BLE GATT based service on a peer device. */
+            ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_SEARCH_DISC_BLE_RES_EVT Discovery result for BLE GATT based service on a peer device");
+            break;
+        case ESP_GAP_SEARCH_DISC_CMPL_EVT: /*!< Discovery complete. */
+            ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_SEARCH_DISC_CMPL_EVT Discovery complete");
+            break;
+        case ESP_GAP_SEARCH_DI_DISC_CMPL_EVT: /*!< Discovery complete. */
+            ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_SEARCH_DI_DISC_CMPL_EVT Discovery complete");
+            break;
+        case ESP_GAP_SEARCH_SEARCH_CANCEL_CMPL_EVT: /*!< Search cancelled */
+            ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_SEARCH_SEARCH_CANCEL_CMPL_EVT Search cancelled");
+            break;
+        case ESP_GAP_SEARCH_INQ_DISCARD_NUM_EVT: /*!< The number of pkt discarded by flow control */
+            ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_SEARCH_INQ_DISCARD_NUM_EVT The number of pkt discarded by flow control");
+            break;
+        }
+
+        return true;
 
     case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
-        ESP_LOGI(TAG_BLE_CALLBACK, "BLE scan stopped");
         if (param->scan_stop_cmpl.status == ESP_BT_STATUS_SUCCESS)
         {
             ESP_LOGI(TAG_BLE_CALLBACK, "Scan stopped");
@@ -182,36 +122,168 @@ static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_
             //  Попытка подключения после остановки сканирования
             if (gattc_if != ESP_GATT_IF_NONE)
             {
-                ESP_LOGI(TAG_BLE_CALLBACK, "Connecting to target device...");
-                // esp_ble_gattc_open(gattc_if, target_addr, BLE_ADDR_TYPE_PUBLIC, true);
+                ESP_LOGI(TAG_BLE_CALLBACK, "Legacy Connecting to target device...");
+#ifdef CONFIG_BT_BLE_42_FEATURES_SUPPORTED
                 auto ret = esp_ble_gattc_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
                 ESP_LOGE(TAG_BLE, "Connecting result: %s", esp_err_to_name(ret));
+#endif
             }
         }
         else
         {
             ESP_LOGE(TAG_BLE_CALLBACK, "Scan stop failed: %d", param->scan_stop_cmpl.status);
         }
-        break;
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
+{
+    switch (event)
+    {
+    case ESP_GAP_BLE_SET_EXT_SCAN_PARAMS_COMPLETE_EVT:
+        if (param->set_ext_scan_params.status == ESP_BT_STATUS_SUCCESS)
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "Extended scan params set, starting scan...");
+            esp_ble_gap_start_ext_scan(30000, 1000); // Бесконечное сканирование
+        }
+        return true;
+
+    case ESP_GAP_BLE_EXT_SCAN_START_COMPLETE_EVT:
+        if (param->ext_scan_start.status == ESP_BT_STATUS_SUCCESS)
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "Extended scan started");
+        }
+        else
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "Extended scan started failed %i", (int)param->ext_scan_start.status);
+        }
+        return true;
+
+    case ESP_GAP_BLE_EXT_ADV_REPORT_EVT:
+    {
+        esp_ble_gap_ext_adv_report_t *report = &param->ext_adv_report.params;
+
+        if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
+
+            process_ext_adv_report(*report);
+            esp_gap_cb(*report);
+            ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, report->adv_data, report->adv_data_len);
+
+            auto ret = esp_ble_gap_stop_ext_scan();
+            ESP_LOGI(TAG_BLE_CALLBACK, "Stop scan %s", esp_err_to_name(ret));
+        }
+        return true;
+
+        ESP_LOGI(TAG_BLE_CALLBACK, "Event ===================================================================== ESP_GAP_BLE_EXT_ADV_REPORT_EVT %d", event);
+        process_ext_adv_report(*report);
+        esp_gap_cb(*report);
+        // ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, report->adv_data, report->adv_data_len);
+
+        if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
+            connect = true;
+            auto ret = esp_ble_gap_stop_ext_scan();
+            ESP_LOGI(TAG_BLE_CALLBACK, "Stop scan %s", esp_err_to_name(ret));
+        }
+
+        return true;
+    }
 
     case ESP_GAP_BLE_EXT_SCAN_STOP_COMPLETE_EVT:
-        ESP_LOGI(TAG_BLE_CALLBACK, "BLE Ext scan stopped");
+    {
         if (param->scan_stop_cmpl.status == ESP_BT_STATUS_SUCCESS)
         {
-            ESP_LOGI(TAG_BLE_CALLBACK, "Scan Ext stopped");
+            ESP_LOGI(TAG_BLE_CALLBACK, "Extended scan stopped");
             // scanning = false;
             //  Попытка подключения после остановки сканирования
-            if (gattc_if != ESP_GATT_IF_NONE)
-            {
-                ESP_LOGI(TAG_BLE_CALLBACK, "Connecting to target device...");
-                auto ret = esp_ble_gattc_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
-                ESP_LOGE(TAG_BLE, "Connecting result: %s", esp_err_to_name(ret));
-            }
+            connectHR();
         }
         else
         {
             ESP_LOGE(TAG_BLE_CALLBACK, "Scan stop failed: %d", param->scan_stop_cmpl.status);
         }
+        return true;
+    }
+
+    case ESP_GAP_BLE_PERIODIC_ADV_REPORT_EVT:
+    {
+        esp_ble_gap_periodic_adv_report_t *report = &param->period_adv_report.params;
+        ESP_LOGI(TAG_BLE_CALLBACK, "Periodic Adv Report - Sync Handle: %d, RSSI: %d", report->sync_handle, report->rssi);
+        ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, report->data, report->data_length);
+        return true;
+    }
+    default:
+        return false;
+    }
+}
+
+static void connectHR()
+{ // scanning = false;
+    //  Попытка подключения после остановки сканирования
+    if (gattc_if != ESP_GATT_IF_NONE)
+    {
+        ESP_LOGI(TAG_BLE_CALLBACK, "Ex Connecting to target device...");
+
+        // auto ret = esp_ble_gattc_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
+      static  esp_ble_conn_params_t p1{
+            .scan_interval = 0x80,         /*!< Initial scan interval, in units of 0.625ms, the range is 0x0004(2.5ms) to 0xFFFF(10.24s). */
+            .scan_window = 0x30,           /*!< Initial scan window, in units of 0.625ms, the range is 0x0004(2.5ms) to 0xFFFF(10.24s). */
+            .interval_min = 0x10,          /*!< Minimum connection interval, in units of 1.25ms, the range is 0x0006(7.5ms) to 0x0C80(4s). */
+            .interval_max = 0x500,         /*!< Maximum connection interval, in units of 1.25ms, the range is 0x0006(7.5ms) to 0x0C80(4s). */
+            .latency = 0,                  /*!< Connection latency, the range is 0x0000(0) to 0x01F3(499). */
+            .supervision_timeout = 0x0280, /*!< Connection supervision timeout, in units of 10ms, the range is from 0x000A(100ms) to 0x0C80(32s). */
+            .min_ce_len = 0,               /*!< Minimum connection event length, in units of 0.625ms, setting to 0 for no preferred parameters. */
+            .max_ce_len = 0,               /*!< Maximum connection event length, in units of 0.625ms, setting to 0 for no preferred parameters. */
+        };
+        // Параметры подключения
+        static esp_ble_gatt_creat_conn_params_t conn_params = {
+            .remote_bda = {0},
+            .remote_addr_type = BLE_ADDR_TYPE_RANDOM, // BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_RANDOM
+            .is_direct = true,                        /*!< Direct connection or background auto connection(by now, background auto connection is not supported */
+            .is_aux = false,                          /*!< Set to true for BLE 5.0 or higher to enable auxiliary connections; set to false for BLE 4.2 or lower. */
+            .own_addr_type = BLE_ADDR_TYPE_PUBLIC,    /*!< Specifies the address type used in the connection request. Set to 0xFF if the address type is unknown. (esp_ble_addr_type_t)0xFF*/
+            .phy_mask = ESP_BLE_PHY_1M_PREF_MASK,     /*!< Indicates which PHY connection parameters will be used. When is_aux is false, only the connection params for 1M PHY can be specified */
+            .phy_1m_conn_params = &p1,                /*!< Connection parameters for the LE 1M PHY */
+            .phy_2m_conn_params = &p1,                /*!< Connection parameters for the LE 2M PHY */
+            .phy_coded_conn_params = &p1              /*!< Connection parameters for the LE Coded PHY */
+        };
+        memcpy(conn_params.remote_bda, target_addr, ESP_BD_ADDR_LEN);
+
+        // Подключение с помощью esp_ble_gattc_enh_open
+        esp_err_t ret = esp_ble_gattc_enh_open(gattc_if, &conn_params);
+
+        esp_ble_gattc_aux_open(gattc_if,target_addr,BLE_ADDR_TYPE_RANDOM, true);
+        if (ret == ESP_OK)
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "Enhanced connection request sent: %s", esp_err_to_name(ret));
+        }
+        else
+        {
+            ESP_LOGE(TAG_BLE_CALLBACK, "Failed to send connection request: %s", esp_err_to_name(ret));
+        }
+    }
+}
+
+static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
+{
+    if (ble_gap_callback_legacy(event, param))
+        return;
+
+    if (ble_gap_callback_ext(event, param))
+        return;
+
+    switch (event)
+    {
+
+    case ESP_GAP_BLE_EXT_ADV_DATA_SET_COMPLETE_EVT:
+        ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_BLE_EXT_ADV_DATA_SET_COMPLETE_EVT ????????????????????");
         break;
 
     default:
@@ -227,7 +299,7 @@ void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report)
     // Форматируем каждое поле
     std::string event_type_str = std::format("Event Type: 0x{:02x}", report.event_type);
     std::string addr_type_str = std::format("Address Type: 0x{:02x}", report.addr_type);
-    std::string addr_str = std::format("Address: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", report.addr[5], report.addr[4], report.addr[3], report.addr[2], report.addr[1], report.addr[0]);
+    std::string addr_str = std::format("Address: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", ESP_BD_ADDR_HEX(report.addr), report.addr[0]);
     std::string primary_phy_str = std::format("Primary PHY: 0x{:02x}", report.primary_phy);
     std::string secondary_phy_str = std::format("Secondary PHY: 0x{:02x}", report.secondly_phy);
     std::string sid_str = std::format("SID: {}", report.sid);
@@ -235,7 +307,7 @@ void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report)
     std::string rssi_str = std::format("RSSI: {} dBm", report.rssi);
     std::string per_adv_interval_str = std::format("Periodic Adv Interval: {} ms", report.per_adv_interval * 125 / 100);
     std::string dir_addr_type_str = std::format("Direct Address Type: 0x{:02x}", report.dir_addr_type);
-    std::string dir_addr_str = std::format("Direct Address: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", report.dir_addr[5], report.dir_addr[4], report.dir_addr[3], report.dir_addr[2], report.dir_addr[1], report.dir_addr[0]);
+    std::string dir_addr_str = std::format("Direct Address: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", ESP_BD_ADDR_HEX(report.dir_addr));
     std::string data_status_str = std::format("Data Status: 0x{:02x}", report.data_status);
     std::string adv_data_len_str = std::format("Adv Data Length: {}", report.adv_data_len);
 
@@ -310,7 +382,34 @@ std::string process_adv_data(const uint8_t *data, uint8_t data_len, esp_ble_adv_
     switch (type)
     {
     case ESP_BLE_AD_TYPE_FLAG:
-        return std::format("Flags: 0x{:02x}", value[0]);
+    {
+        auto val = value[0];
+        std::string out;
+
+        // Устройство в ограниченном режиме обнаружения.
+        // Это означает, что устройство будет доступно только для некоторых типов соединений.
+        if (val & ESP_BLE_ADV_FLAG_LIMIT_DISC)
+            out.append("ESP_BLE_ADV_FLAG_LIMIT_DISC ");
+
+        // Устройство в общем режиме обнаружения.
+        // Устройство будет доступно для обнаружения всеми другими BLE-устройствами.
+        if (val & ESP_BLE_ADV_FLAG_GEN_DISC)
+            out.append("ESP_BLE_ADV_FLAG_GEN_DISC ");
+
+        // Устройство не поддерживает BR/EDR (Basic Rate / Enhanced Data Rate), то есть это чисто BLE-устройство.
+        // Указывает, что устройство не будет работать в классическом Bluetooth-режиме.
+        if (val & ESP_BLE_ADV_FLAG_BREDR_NOT_SPT)
+            out.append("ESP_BLE_ADV_FLAG_BREDR_NOT_SPT ");
+
+        if (val & ESP_BLE_ADV_FLAG_DMT_CONTROLLER_SPT)
+            out.append("ESP_BLE_ADV_FLAG_DMT_CONTROLLER_SPT ");
+
+        if (val & ESP_BLE_ADV_FLAG_DMT_HOST_SPT)
+            out.append("ESP_BLE_ADV_FLAG_DMT_HOST_SPT ");
+
+        return std::format("Flags: 0x{:02x} {}", value[0], out);
+    }
+
     case ESP_BLE_AD_TYPE_16SRV_PART:
     case ESP_BLE_AD_TYPE_16SRV_CMPL:
     case ESP_BLE_AD_TYPE_SOL_SRV_UUID:
@@ -389,8 +488,7 @@ std::string process_adv_data(const uint8_t *data, uint8_t data_len, esp_ble_adv_
     case ESP_BLE_AD_TYPE_ADV_INT:
         return std::format("Adv Interval: {} ms", ((value[1] << 8) | value[0]) * 625 / 1000);
     case ESP_BLE_AD_TYPE_LE_DEV_ADDR:
-        return std::format("LE Device Address: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-                           value[5], value[4], value[3], value[2], value[1], value[0]);
+        return std::format("LE Device Address: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", ESP_BD_ADDR_HEX(value));
     case ESP_BLE_AD_TYPE_LE_ROLE:
         return std::format("LE Role: 0x{:02x}", value[0]);
     case ESP_BLE_AD_TYPE_SPAIR_C256:
@@ -464,7 +562,7 @@ std::string process_adv_data(const uint8_t *data, uint8_t data_len, esp_ble_adv_
 }
 
 // Обработчик GATT-событий
-static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if_param, esp_ble_gattc_cb_param_t *param)
+static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if_param, esp_ble_gattc_cb_param_t *param)
 {
     switch (event)
     {
@@ -474,13 +572,32 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if_para
             ESP_LOGI(TAG_BLE_GATTC, "GATT client registered, gattc_if = %d", gattc_if_param);
             gattc_if = gattc_if_param;
             // esp_ble_gap_start_ext_scan(0xFFFFFFFF, 0);
+
+             connectHR();
         }
         else
         {
             ESP_LOGE(TAG_BLE_GATTC, "GATT client registration failed: %d", param->reg.status);
         }
         break;
+
+    case ESP_GATTC_CONNECT_EVT:
+    {
+        auto connect = &param->connect;
+        ESP_LOGI(TAG_BLE_GATTC, "ESP_GATTC_CONNECT_EVT: " ESP_BD_ADDR_STR, ESP_BD_ADDR_HEX(connect->remote_bda));
+        break;
+    }
+
+    case ESP_GATTC_DISCONNECT_EVT:
+    {
+        auto disconnect = &param->disconnect;
+        auto ad = disconnect->remote_bda;
+        ESP_LOGI(TAG_BLE_GATTC, "ESP_GATTC_DISCONNECT_EVT: " ESP_BD_ADDR_STR " conn_id:%d reason:%d", ESP_BD_ADDR_HEX(ad), disconnect->conn_id, disconnect->reason);
+        break;
+    }
+
     case ESP_GATTC_OPEN_EVT:
+    {
         if (param->open.status == ESP_GATT_OK)
         {
             auto conn_id = param->open.conn_id;
@@ -492,6 +609,8 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if_para
             ESP_LOGE(TAG_BLE_GATTC, "Connection failed, status = %d", param->open.status);
         }
         break;
+    }
+
     case ESP_GATTC_SEARCH_RES_EVT:
     {
         auto search_res = &param->search_res;
@@ -510,7 +629,9 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if_para
         }
         break;
     }
+
     case ESP_GATTC_SEARCH_CMPL_EVT:
+    {
         if (param->search_cmpl.status == ESP_GATT_OK)
         {
             ESP_LOGI(TAG_BLE_GATTC, "Service discovery completed, conn_id = %d", param->search_cmpl.conn_id);
@@ -520,7 +641,10 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if_para
             ESP_LOGE(TAG_BLE_GATTC, "Service discovery failed: %d", param->search_cmpl.status);
         }
         break;
+    }
+
     default:
+        ESP_LOGE(TAG_BLE_GATTC, "esp_gattc_callback !!! event: %d", (int)event);
         break;
     }
 }
@@ -530,89 +654,37 @@ void ble_init(void)
     ESP_LOGI(TAG_BLE, "Initializing BLE...");
     esp_err_t ret;
 
-    // Need call or skip?
-    // esp_err_t ret = esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
-    // if (ret != ESP_OK)
-    //{
-    //    ESP_LOGE(TAG_BLE, "Failed to release classic BT memory: %s", esp_err_to_name(ret));
-    //    return;
-    //}
-
-    // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/controller_vhci.html#_CPPv422esp_bt_controller_initP26esp_bt_controller_config_t
-    // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/controller_vhci.html#_CPPv426esp_bt_controller_config_t
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-    ret = esp_bt_controller_init(&bt_cfg);
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE(TAG_BLE, "Bluetooth controller initialization failed: %s", esp_err_to_name(ret));
+    if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_bt_controller_init(&bt_cfg)))
         return;
-    }
 
-    // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/controller_vhci.html#_CPPv424esp_bt_controller_enable13esp_bt_mode_t
-    // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/controller_vhci.html#_CPPv413esp_bt_mode_t
-    // try select from controller type
-    // ret = esp_bt_controller_enable(ESP_BT_MODE_BTDM); // ESP_BT_MODE_BLE ESP_BT_MODE_BTDM
-    ret = esp_bt_controller_enable(ESP_BT_MODE_BLE); // ESP_BT_MODE_BLE ESP_BT_MODE_BTDM
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE(TAG_BLE, "Failed to enable BLE: %s", esp_err_to_name(ret));
+    if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_bt_controller_enable(ESP_BT_MODE_BLE)))
         return;
-    }
 
-    ret = esp_bluedroid_init();
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE(TAG_BLE, "Failed to initialize bluedroid: %s", esp_err_to_name(ret));
+    if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_bluedroid_init()))
         return;
-    }
 
-    ret = esp_bluedroid_enable();
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE(TAG_BLE, "Failed to enable bluedroid: %s", esp_err_to_name(ret));
+    if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_bluedroid_enable()))
         return;
-    }
 
-    ret = esp_ble_gap_register_callback(ble_gap_callback);
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE(TAG_BLE, "Failed esp_ble_gap_register_callback: %s", esp_err_to_name(ret));
+    if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gap_register_callback(ble_gap_callback)))
         return;
-    }
-    esp_ble_gattc_register_callback(esp_gattc_cb);
-    esp_ble_gattc_app_register(GATT_PROFILE_APP_ID);
 
-    // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/bluetooth/esp_gap_ble.html#_CPPv427esp_ble_gap_set_scan_paramsP21esp_ble_scan_params_t
-    // ret = esp_ble_gap_set_scan_params(&scan_params);
-    // if (ret != ESP_OK)
-    //{
-    //    ESP_LOGE(TAG_BLE, "Failed esp_ble_gap_set_scan_params: %s", esp_err_to_name(ret));
+    if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gattc_register_callback(esp_gattc_callback)))
+        return;
+
+    if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gattc_app_register(GATT_PROFILE_APP_ID)))
+        return;
+
+    // Legacy
+    // if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gap_set_scan_params(&scan_params)))
     //    return;
-    //}
 
-    ret = esp_ble_gap_set_ext_scan_params(&ext_scan_params);
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE(TAG_BLE, "Failed esp_ble_gap_set_ext_scan_params: %s", esp_err_to_name(ret));
-        return;
-    }
+    // BLE 5.0
+    //if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gap_set_ext_scan_params(&ext_scan_params)))
+    //    return;
 
-    // ret = esp_ble_gap_start_ext_scan(0xFFFE, 0);
-    // if (ret != ESP_OK)
-    //{
-    //     ESP_LOGE(TAG_BLE, "Failed esp_ble_gap_start_ext_scan: %s", esp_err_to_name(ret));
-    //     return;
-    // }
-
-    // esp_ble_gattc_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
-
-    // esp_ble_gap_set_scan_params(&((esp_ble_scan_params_t)
-    //{
-    //     .scan_type = BLE_SCAN_TYPE_PASSIVE,
-    //     .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
-    //     .scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
-    //     .scan_interval = 0x50,
-    //     .scan_window = 0x30}));
+    //    connectHR();
 
     ESP_LOGI(TAG_BLE, "BLE initialized.");
 }
