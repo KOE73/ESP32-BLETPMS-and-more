@@ -34,7 +34,7 @@ esp_ble_scan_params_t scan_params = {
 esp_ble_ext_scan_params_t ext_scan_params = {
     .own_addr_type = BLE_ADDR_TYPE_PUBLIC,                                                 /* BLE_ADDR_TYPE_PUBLIC BLE_ADDR_TYPE_RANDOM BLE_ADDR_TYPE_RPA_PUBLIC BLE_ADDR_TYPE_RPA_RANDOM */
     .filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,                                            /* BLE_SCAN_FILTER_ALLOW_ALL BLE_SCAN_FILTER_ALLOW_ONLY_WLST BLE_SCAN_FILTER_ALLOW_UND_RPA_DIR BLE_SCAN_FILTER_ALLOW_WLIST_RPA_DIR */
-    .scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE,                                          /* BLE_SCAN_DUPLICATE_DISABLE BLE_SCAN_DUPLICATE_ENABLE (BLE5)BLE_SCAN_DUPLICATE_ENABLE_RESET*/
+    .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE,                                          /* BLE_SCAN_DUPLICATE_DISABLE BLE_SCAN_DUPLICATE_ENABLE (BLE5)BLE_SCAN_DUPLICATE_ENABLE_RESET*/
     .cfg_mask = ESP_BLE_GAP_EXT_SCAN_CFG_UNCODE_MASK | ESP_BLE_GAP_EXT_SCAN_CFG_CODE_MASK, /* Scan Advertisements on the LE1M PHY | on the LE coded PHY */
     .uncoded_cfg = {BLE_SCAN_TYPE_ACTIVE, 40, 40},
     .coded_cfg = {BLE_SCAN_TYPE_ACTIVE, 40, 40},
@@ -43,12 +43,21 @@ esp_ble_ext_scan_params_t ext_scan_params = {
 #define GATT_PROFILE_APP_ID 0
 
 static bool connect = false;
-static esp_gatt_if_t gattc_if=ESP_GATT_IF_NONE;
+static esp_gatt_if_t gattc_if = ESP_GATT_IF_NONE;
 // COOLSPO Address
 static esp_bd_addr_t target_addr = {0xc3, 0x2f, 0x4c, 0xf4, 0xfe, 0x52};
 // static esp_bd_addr_t target_addr = {0x52, 0xfe, 0xf4, 0x4c, 0x2f, 0xc3};
 static uint16_t conn_id = 0;
 static uint16_t hr_handle = 0; // Дескриптор характеристики пульса
+
+// 13 ff 00 01 82 ea ca 30 07 27 64 8e 03 00 75 09 00 00 42 00
+// 
+// 13 → Длина (19 байт)
+// ff → Тип: Manufacturer Specific Data (ESP_BLE_AD_TYPE_MANUFACTURER_SPECIFIC)
+// 00 01 → Производитель (возможно, ID производителя)
+// 82 ea ca 30 07 27 64 8e 03 00 75 09 00 00 42 00 → Данные производителя
+// https://github.com/ra6070/BLE-TPMS/blob/master/tpms.ino
+static esp_bd_addr_t target_addr_TPMS = {0x82, 0xea, 0xca, 0x30, 0x07, 0x27};
 
 // ====== BLE FUNCTIONS ======
 
@@ -167,31 +176,31 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
     {
         esp_ble_gap_ext_adv_report_t *report = &param->ext_adv_report.params;
 
-        if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
-        {
-            ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
-
-            process_ext_adv_report(*report);
-            esp_gap_cb(*report);
-            ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, report->adv_data, report->adv_data_len);
-
-            auto ret = esp_ble_gap_stop_ext_scan();
-            ESP_LOGI(TAG_BLE_CALLBACK, "Stop scan %s", esp_err_to_name(ret));
-        }
-        return true;
+        // if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
+        //{
+        //     ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
+        //
+        //    process_ext_adv_report(*report);
+        //    esp_gap_cb(*report);
+        //    ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, report->adv_data, report->adv_data_len);
+        //
+        //    auto ret = esp_ble_gap_stop_ext_scan();
+        //    ESP_LOGI(TAG_BLE_CALLBACK, "Stop scan %s", esp_err_to_name(ret));
+        //}
+        // return true;
 
         ESP_LOGI(TAG_BLE_CALLBACK, "Event ===================================================================== ESP_GAP_BLE_EXT_ADV_REPORT_EVT %d", event);
         process_ext_adv_report(*report);
         esp_gap_cb(*report);
         // ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, report->adv_data, report->adv_data_len);
 
-        if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
-        {
-            ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
-            connect = true;
-            auto ret = esp_ble_gap_stop_ext_scan();
-            ESP_LOGI(TAG_BLE_CALLBACK, "Stop scan %s", esp_err_to_name(ret));
-        }
+        //if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
+        //{
+        //    ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
+        //    connect = true;
+        //    auto ret = esp_ble_gap_stop_ext_scan();
+        //    ESP_LOGI(TAG_BLE_CALLBACK, "Stop scan %s", esp_err_to_name(ret));
+        //}
 
         return true;
     }
@@ -203,7 +212,7 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
             ESP_LOGI(TAG_BLE_CALLBACK, "Extended scan stopped");
             // scanning = false;
             //  Попытка подключения после остановки сканирования
-            connectHR();
+            // connectHR();
         }
         else
         {
@@ -232,7 +241,7 @@ static void connectHR()
         ESP_LOGI(TAG_BLE_CALLBACK, "Ex Connecting to target device...");
 
         // auto ret = esp_ble_gattc_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
-      static  esp_ble_conn_params_t p1{
+        static esp_ble_conn_params_t p1{
             .scan_interval = 0x80,         /*!< Initial scan interval, in units of 0.625ms, the range is 0x0004(2.5ms) to 0xFFFF(10.24s). */
             .scan_window = 0x30,           /*!< Initial scan window, in units of 0.625ms, the range is 0x0004(2.5ms) to 0xFFFF(10.24s). */
             .interval_min = 0x10,          /*!< Minimum connection interval, in units of 1.25ms, the range is 0x0006(7.5ms) to 0x0C80(4s). */
@@ -259,7 +268,7 @@ static void connectHR()
         // Подключение с помощью esp_ble_gattc_enh_open
         esp_err_t ret = esp_ble_gattc_enh_open(gattc_if, &conn_params);
 
-        esp_ble_gattc_aux_open(gattc_if,target_addr,BLE_ADDR_TYPE_RANDOM, true);
+        esp_ble_gattc_aux_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
         if (ret == ESP_OK)
         {
             ESP_LOGI(TAG_BLE_CALLBACK, "Enhanced connection request sent: %s", esp_err_to_name(ret));
@@ -325,11 +334,11 @@ void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report)
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", primary_phy_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", secondary_phy_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", sid_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", tx_power_str.c_str());
+    //ESP_LOGI(TAG_BLE_CALLBACK, "%s", tx_power_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", rssi_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", per_adv_interval_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", dir_addr_type_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", dir_addr_str.c_str());
+    //ESP_LOGI(TAG_BLE_CALLBACK, "%s", per_adv_interval_str.c_str());
+    //ESP_LOGI(TAG_BLE_CALLBACK, "%s", dir_addr_type_str.c_str());
+    //ESP_LOGI(TAG_BLE_CALLBACK, "%s", dir_addr_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", data_status_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", adv_data_len_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", adv_data_str.c_str());
@@ -573,7 +582,7 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
             gattc_if = gattc_if_param;
             // esp_ble_gap_start_ext_scan(0xFFFFFFFF, 0);
 
-             connectHR();
+            connectHR();
         }
         else
         {
@@ -681,8 +690,8 @@ void ble_init(void)
     //    return;
 
     // BLE 5.0
-    //if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gap_set_ext_scan_params(&ext_scan_params)))
-    //    return;
+     if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gap_set_ext_scan_params(&ext_scan_params)))
+        return;
 
     //    connectHR();
 
