@@ -69,7 +69,8 @@
         "list": "cpp",
         "mutex": "cpp",
         "thread": "cpp",
-        "esp_event.h": "c"
+        "esp_event.h": "c",
+        "cstring": "cpp"
     },
     "editor.minimap.scale": 2,
     "editor.minimap.showSlider": "always",
