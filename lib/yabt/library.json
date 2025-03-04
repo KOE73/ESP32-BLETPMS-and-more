@@ -1,0 +1,15 @@
+{
+    "name": "yabt",
+    "description": "Bluetooth for ESP32",
+    "keywords": "esp32, IDF, Bluetooth",
+    "version": "0.1.0",
+    "authors": [
+        {
+            "name": "KOE",
+            "email": "koetmp@gmail.com"
+        }
+    ],
+    "frameworks": "espidf",
+    "platforms": ["espressif32"],
+    "dependencies": []
+}

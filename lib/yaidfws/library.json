@@ -1,0 +1,15 @@
+{
+    "name": "yaidfws",
+    "description": "Web server for ESP32 + IDF",
+    "keywords": "esp32, IDF, webserver, websockets, http",
+    "version": "0.1.0",
+    "authors": [
+        {
+            "name": "KOE",
+            "email": "koetmp@gmail.com"
+        }
+    ],
+    "frameworks": "espidf",
+    "platforms": ["espressif32"],
+    "dependencies": []
+}

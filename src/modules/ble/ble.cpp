@@ -15,6 +15,8 @@
 // #include "esp_gatts_api.h"
 #include "esp_gattc_api.h"
 
+#include "bluetooth-SIG/company_identifiers.h"
+
 // Теги для логирования
 static const char *TAG_BLE = "BLE";
 static const char *TAG_BLE_CALLBACK = "BLE_CB";
@@ -356,6 +358,9 @@ void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report)
 // Обработчик BLE-событий
 void esp_gap_cb(esp_ble_gap_ext_adv_report_t &report)
 {
+    const char* d= get_company_name(0x0100);
+    ESP_LOGI(TAG_BLE_CALLBACK, "%s", d);
+  
     // Список всех типов
     esp_ble_adv_data_type types[] = {
         ESP_BLE_AD_TYPE_FLAG, ESP_BLE_AD_TYPE_16SRV_PART, ESP_BLE_AD_TYPE_16SRV_CMPL,
