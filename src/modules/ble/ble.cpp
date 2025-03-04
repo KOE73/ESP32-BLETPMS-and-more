@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <string.h>
+
 #include <string>
 #include <format>
+#include <unordered_map>
+#include <vector>
+
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_event.h"
@@ -15,6 +19,10 @@
 static const char *TAG_BLE = "BLE";
 static const char *TAG_BLE_CALLBACK = "BLE_CB";
 static const char *TAG_BLE_GATTC = "BLE_GATTC";
+
+#define LOG_GATTC_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_GREEN, LOG_ANSI_COLOR_BG_YELLOW)
+
+#define INVALID_HANDLE 0
 
 void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report);
 void esp_gap_cb(esp_ble_gap_ext_adv_report_t &report);
@@ -34,7 +42,7 @@ esp_ble_scan_params_t scan_params = {
 esp_ble_ext_scan_params_t ext_scan_params = {
     .own_addr_type = BLE_ADDR_TYPE_PUBLIC,                                                 /* BLE_ADDR_TYPE_PUBLIC BLE_ADDR_TYPE_RANDOM BLE_ADDR_TYPE_RPA_PUBLIC BLE_ADDR_TYPE_RPA_RANDOM */
     .filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,                                            /* BLE_SCAN_FILTER_ALLOW_ALL BLE_SCAN_FILTER_ALLOW_ONLY_WLST BLE_SCAN_FILTER_ALLOW_UND_RPA_DIR BLE_SCAN_FILTER_ALLOW_WLIST_RPA_DIR */
-    .scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE,                                          /* BLE_SCAN_DUPLICATE_DISABLE BLE_SCAN_DUPLICATE_ENABLE (BLE5)BLE_SCAN_DUPLICATE_ENABLE_RESET*/
+    .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE,                                           /* BLE_SCAN_DUPLICATE_DISABLE BLE_SCAN_DUPLICATE_ENABLE (BLE5)BLE_SCAN_DUPLICATE_ENABLE_RESET*/
     .cfg_mask = ESP_BLE_GAP_EXT_SCAN_CFG_UNCODE_MASK | ESP_BLE_GAP_EXT_SCAN_CFG_CODE_MASK, /* Scan Advertisements on the LE1M PHY | on the LE coded PHY */
     .uncoded_cfg = {BLE_SCAN_TYPE_ACTIVE, 40, 40},
     .coded_cfg = {BLE_SCAN_TYPE_ACTIVE, 40, 40},
@@ -43,12 +51,21 @@ esp_ble_ext_scan_params_t ext_scan_params = {
 #define GATT_PROFILE_APP_ID 0
 
 static bool connect = false;
-static esp_gatt_if_t gattc_if=ESP_GATT_IF_NONE;
+static esp_gatt_if_t gattc_if = ESP_GATT_IF_NONE;
 // COOLSPO Address
 static esp_bd_addr_t target_addr = {0xc3, 0x2f, 0x4c, 0xf4, 0xfe, 0x52};
 // static esp_bd_addr_t target_addr = {0x52, 0xfe, 0xf4, 0x4c, 0x2f, 0xc3};
 static uint16_t conn_id = 0;
 static uint16_t hr_handle = 0; // Дескриптор характеристики пульса
+
+// 13 ff 00 01 82 ea ca 30 07 27 64 8e 03 00 75 09 00 00 42 00
+//
+// 13 → Длина (19 байт)
+// ff → Тип: Manufacturer Specific Data (ESP_BLE_AD_TYPE_MANUFACTURER_SPECIFIC)
+// 00 01 → Производитель (возможно, ID производителя)
+// 82 ea ca 30 07 27 64 8e 03 00 75 09 00 00 42 00 → Данные производителя
+// https://github.com/ra6070/BLE-TPMS/blob/master/tpms.ino
+static esp_bd_addr_t target_addr_TPMS = {0x82, 0xea, 0xca, 0x30, 0x07, 0x27};
 
 // ====== BLE FUNCTIONS ======
 
@@ -180,18 +197,18 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
         }
         return true;
 
-        ESP_LOGI(TAG_BLE_CALLBACK, "Event ===================================================================== ESP_GAP_BLE_EXT_ADV_REPORT_EVT %d", event);
-        process_ext_adv_report(*report);
-        esp_gap_cb(*report);
-        // ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, report->adv_data, report->adv_data_len);
+        // ESP_LOGI(TAG_BLE_CALLBACK, "Event ===================================================================== ESP_GAP_BLE_EXT_ADV_REPORT_EVT %d", event);
+        // process_ext_adv_report(*report);
+        // esp_gap_cb(*report);
+        //  ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, report->adv_data, report->adv_data_len);
 
-        if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
-        {
-            ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
-            connect = true;
-            auto ret = esp_ble_gap_stop_ext_scan();
-            ESP_LOGI(TAG_BLE_CALLBACK, "Stop scan %s", esp_err_to_name(ret));
-        }
+        // if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
+        //{
+        //     ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
+        //     connect = true;
+        //     auto ret = esp_ble_gap_stop_ext_scan();
+        //     ESP_LOGI(TAG_BLE_CALLBACK, "Stop scan %s", esp_err_to_name(ret));
+        // }
 
         return true;
     }
@@ -232,7 +249,7 @@ static void connectHR()
         ESP_LOGI(TAG_BLE_CALLBACK, "Ex Connecting to target device...");
 
         // auto ret = esp_ble_gattc_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
-      static  esp_ble_conn_params_t p1{
+        static esp_ble_conn_params_t p1{
             .scan_interval = 0x80,         /*!< Initial scan interval, in units of 0.625ms, the range is 0x0004(2.5ms) to 0xFFFF(10.24s). */
             .scan_window = 0x30,           /*!< Initial scan window, in units of 0.625ms, the range is 0x0004(2.5ms) to 0xFFFF(10.24s). */
             .interval_min = 0x10,          /*!< Minimum connection interval, in units of 1.25ms, the range is 0x0006(7.5ms) to 0x0C80(4s). */
@@ -256,10 +273,11 @@ static void connectHR()
         };
         memcpy(conn_params.remote_bda, target_addr, ESP_BD_ADDR_LEN);
 
+        esp_err_t ret;
         // Подключение с помощью esp_ble_gattc_enh_open
-        esp_err_t ret = esp_ble_gattc_enh_open(gattc_if, &conn_params);
+        // esp_err_t ret = esp_ble_gattc_enh_open(gattc_if, &conn_params);
 
-        esp_ble_gattc_aux_open(gattc_if,target_addr,BLE_ADDR_TYPE_RANDOM, true);
+        ret = esp_ble_gattc_aux_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
         if (ret == ESP_OK)
         {
             ESP_LOGI(TAG_BLE_CALLBACK, "Enhanced connection request sent: %s", esp_err_to_name(ret));
@@ -325,11 +343,11 @@ void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report)
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", primary_phy_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", secondary_phy_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", sid_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", tx_power_str.c_str());
+    // ESP_LOGI(TAG_BLE_CALLBACK, "%s", tx_power_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", rssi_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", per_adv_interval_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", dir_addr_type_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", dir_addr_str.c_str());
+    // ESP_LOGI(TAG_BLE_CALLBACK, "%s", per_adv_interval_str.c_str());
+    // ESP_LOGI(TAG_BLE_CALLBACK, "%s", dir_addr_type_str.c_str());
+    // ESP_LOGI(TAG_BLE_CALLBACK, "%s", dir_addr_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", data_status_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", adv_data_len_str.c_str());
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", adv_data_str.c_str());
@@ -561,6 +579,91 @@ std::string process_adv_data(const uint8_t *data, uint8_t data_len, esp_ble_adv_
     }
 }
 
+#pragma region GATCC
+
+struct GATTServiceInfo
+{
+    uint16_t start_handle;
+    uint16_t end_handle;
+    esp_bt_uuid_t uuid;
+};
+
+// Таблица стандартных сервисов BLE
+std::unordered_map<uint16_t, std::string> ble_services = {
+    {0x1800, "Generic Access"},
+    {0x1801, "Generic Attribute"},
+    {0x1802, "Immediate Alert"},
+    {0x1803, "Link Loss"},
+    {0x1804, "Tx Power"},
+    {0x1805, "Current Time Service"},
+    {0x1806, "Reference Time Update Service"},
+    {0x1807, "Next DST Change Service"},
+    {0x1808, "Glucose"},
+    {0x1809, "Health Thermometer"},
+    {0x180A, "Device Information"},
+    {0x180D, "Heart Rate"},
+    {0x180E, "Phone Alert Status"},
+    {0x180F, "Battery"},
+    {0x1810, "Blood Pressure"},
+    {0x1811, "Alert Notification Service"},
+    {0x1812, "Human Interface Device"},
+    {0x1813, "Scan Parameters"},
+    {0x1814, "Running Speed and Cadence"},
+    {0x1815, "Automation IO"},
+    {0x1816, "Cycling Speed and Cadence"},
+    {0x1818, "Cycling Power"},
+    {0x1819, "Location and Navigation"}};
+
+// Храним найденные сервисы
+std::vector<GATTServiceInfo> found_services;
+
+std::string get_service_name(uint16_t uuid16)
+{
+    auto it = ble_services.find(uuid16);
+    if (it != ble_services.end())
+    {
+        return it->second;
+    }
+    return std::format("Unknown Service (UUID: 0x{:04X})", uuid16);
+}
+
+std::string format_uuid(const esp_bt_uuid_t &uuid)
+{
+    if (uuid.len == ESP_UUID_LEN_16)
+    {
+        return std::format("UUID: 0x{:04X} -> {}", uuid.uuid.uuid16, get_service_name(uuid.uuid.uuid16));
+    }
+    else if (uuid.len == ESP_UUID_LEN_32)
+    {
+        return std::format("UUID: 0x{:08X}", uuid.uuid.uuid32);
+    }
+    else
+    {
+        char uuid_str[37];
+        snprintf(uuid_str, sizeof(uuid_str),
+                 "%08X-%04X-%04X-%04X-%012X",
+                 uuid.uuid.uuid128[0] << 24 | uuid.uuid.uuid128[1] << 16 | uuid.uuid.uuid128[2] << 8 | uuid.uuid.uuid128[3],
+                 uuid.uuid.uuid128[4] << 8 | uuid.uuid.uuid128[5],
+                 uuid.uuid.uuid128[6] << 8 | uuid.uuid.uuid128[7],
+                 uuid.uuid.uuid128[8] << 8 | uuid.uuid.uuid128[9],
+                 uuid.uuid.uuid128[10] << 8 | uuid.uuid.uuid128[11]);
+        return std::string("Custom Service UUID: ") + uuid_str;
+    }
+}
+
+void print_found_services()
+{
+    std::string result = "Found GATT Services:\n";
+    for (const auto &service : found_services)
+    {
+        result += std::format("Start Handle: {}, End Handle: {}, {}\n",
+                              service.start_handle,
+                              service.end_handle,
+                              format_uuid(service.uuid));
+    }
+    ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "%s" LOG_ANSI_COLOR_RESET, result.c_str());
+}
+
 // Обработчик GATT-событий
 static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if_param, esp_ble_gattc_cb_param_t *param)
 {
@@ -569,22 +672,19 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
     case ESP_GATTC_REG_EVT:
         if (param->reg.status == ESP_GATT_OK)
         {
-            ESP_LOGI(TAG_BLE_GATTC, "GATT client registered, gattc_if = %d", gattc_if_param);
+            ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "GATT client registered, gattc_if = %d" LOG_ANSI_COLOR_RESET, gattc_if_param);
             gattc_if = gattc_if_param;
-            // esp_ble_gap_start_ext_scan(0xFFFFFFFF, 0);
-
-             connectHR();
         }
         else
         {
-            ESP_LOGE(TAG_BLE_GATTC, "GATT client registration failed: %d", param->reg.status);
+            ESP_LOGE(TAG_BLE_GATTC, LOG_GATTC_COLOR "GATT client registration failed: %d", param->reg.status);
         }
         break;
 
     case ESP_GATTC_CONNECT_EVT:
     {
         auto connect = &param->connect;
-        ESP_LOGI(TAG_BLE_GATTC, "ESP_GATTC_CONNECT_EVT: " ESP_BD_ADDR_STR, ESP_BD_ADDR_HEX(connect->remote_bda));
+        ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "ESP_GATTC_CONNECT_EVT: " ESP_BD_ADDR_STR LOG_ANSI_COLOR_RESET, ESP_BD_ADDR_HEX(connect->remote_bda));
         break;
     }
 
@@ -592,62 +692,230 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
     {
         auto disconnect = &param->disconnect;
         auto ad = disconnect->remote_bda;
-        ESP_LOGI(TAG_BLE_GATTC, "ESP_GATTC_DISCONNECT_EVT: " ESP_BD_ADDR_STR " conn_id:%d reason:%d", ESP_BD_ADDR_HEX(ad), disconnect->conn_id, disconnect->reason);
+        ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "ESP_GATTC_DISCONNECT_EVT: " ESP_BD_ADDR_STR " conn_id:%d reason:%d" LOG_ANSI_COLOR_RESET, ESP_BD_ADDR_HEX(ad), disconnect->conn_id, disconnect->reason);
         break;
     }
 
+    /* When GATT virtual connection is set up */
     case ESP_GATTC_OPEN_EVT:
     {
         if (param->open.status == ESP_GATT_OK)
         {
             auto conn_id = param->open.conn_id;
-            ESP_LOGI(TAG_BLE_GATTC, "Connected to COOSPO H6, conn_id = %d", conn_id);
+            ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "ESP_GATTC_OPEN_EVT Connected to COOSPO H6, conn_id = %d" LOG_ANSI_COLOR_RESET, conn_id);
             esp_ble_gattc_search_service(gattc_if, conn_id, NULL); // Поиск всех сервисов
         }
         else
         {
-            ESP_LOGE(TAG_BLE_GATTC, "Connection failed, status = %d", param->open.status);
+            ESP_LOGE(TAG_BLE_GATTC, LOG_GATTC_COLOR "ESP_GATTC_OPEN_EVT Connection failed, status = %d" LOG_ANSI_COLOR_RESET, param->open.status);
         }
         break;
     }
 
-    case ESP_GATTC_SEARCH_RES_EVT:
-    {
-        auto search_res = &param->search_res;
-        ESP_LOGI(TAG_BLE_GATTC, "Service found: UUID len: %d, Start Handle: %d, End Handle: %d", search_res->srvc_id.uuid.len, search_res->start_handle, search_res->end_handle);
 
-        if (search_res->srvc_id.uuid.len == ESP_UUID_LEN_16)
+    case ESP_GATTC_READ_CHAR_EVT:
+    {
+        auto &read = param->read;
+        if (read.status == ESP_GATT_OK)
         {
-            if (search_res->srvc_id.uuid.uuid.uuid16 == 0x180D)
-            {
-                ESP_LOGI(TAG_BLE_GATTC, "Found Heart Rate Service (0x180D), handle range: %d-%d", search_res->start_handle, search_res->end_handle);
-            }
-            else if (search_res->srvc_id.uuid.uuid.uuid16 == 0x180F)
-            {
-                ESP_LOGI(TAG_BLE_GATTC, "Found Battery Service (0x180F), handle range: %d-%d", search_res->start_handle, search_res->end_handle);
+            uint8_t *value = read.value;
+            size_t len = read.value_len;
+            ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "Read value from handle %d, len: %d" LOG_ANSI_COLOR_RESET, read.handle, len);
+            ESP_LOG_BUFFER_HEX(TAG_BLE_GATTC, value, len);
+
+            // Зона фантазий
+            static uint16_t device_name_handle = 0; // Дескриптор Device Name (0x2A00)
+            // Проверяем, является ли это Device Name (0x2A00)
+            if (len > 0 && device_name_handle == 0)
+            { 
+                // Предполагаем, что это первый читаемый handle
+                device_name_handle = read.handle;
+                std::string device_name(reinterpret_cast<const char *>(value), len);
+
+                ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "Device Name: %s" LOG_ANSI_COLOR_RESET, device_name.c_str());
             }
         }
+        else
+        {
+
+            ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "ESP_GATTC_READ_CHAR_EVT status %x" LOG_ANSI_COLOR_RESET, (int)read.status);
+        }
+        break;
+    }
+ 
+
+    /* GATT service discovery result is got */
+    case ESP_GATTC_SEARCH_RES_EVT:
+    {
+        auto &res = param->search_res;
+        GATTServiceInfo service_info = {
+            .start_handle = res.start_handle,
+            .end_handle = res.end_handle,
+            .uuid = res.srvc_id.uuid};
+        found_services.push_back(service_info);
+
+        // auto search_res = &param->search_res;
+        // ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "Service found: UUID len: %d, Start Handle: %d, End Handle: %d" LOG_ANSI_COLOR_RESET, search_res->srvc_id.uuid.len, search_res->start_handle, search_res->end_handle);
+        //
+        // if (search_res->srvc_id.uuid.len == ESP_UUID_LEN_16)
+        //{
+        //    if (search_res->srvc_id.uuid.uuid.uuid16 == 0x180D)
+        //    {
+        //        ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "Found Heart Rate Service (0x180D), handle range: %d-%d" LOG_ANSI_COLOR_RESET, search_res->start_handle, search_res->end_handle);
+        //    }
+        //    else if (search_res->srvc_id.uuid.uuid.uuid16 == 0x180F)
+        //    {
+        //        ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "Found Battery Service (0x180F), handle range: %d-%d" LOG_ANSI_COLOR_RESET, search_res->start_handle, search_res->end_handle);
+        //    }
+        //}
         break;
     }
 
     case ESP_GATTC_SEARCH_CMPL_EVT:
     {
+        print_found_services();
+
         if (param->search_cmpl.status == ESP_GATT_OK)
         {
-            ESP_LOGI(TAG_BLE_GATTC, "Service discovery completed, conn_id = %d", param->search_cmpl.conn_id);
+            ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "Service discovery completed, conn_id = %d" LOG_ANSI_COLOR_RESET, param->search_cmpl.conn_id);
         }
         else
         {
-            ESP_LOGE(TAG_BLE_GATTC, "Service discovery failed: %d", param->search_cmpl.status);
+            ESP_LOGE(TAG_BLE_GATTC, LOG_GATTC_COLOR "Service discovery failed: %d" LOG_ANSI_COLOR_RESET, param->search_cmpl.status);
+        }
+
+        // Теперь можно читать характеристики (esp_ble_gattc_read_char)
+        // Или подписаться на уведомления (esp_ble_gattc_register_for_notify).
+
+        uint16_t count = 0;
+        uint16_t offset = 0;
+        esp_gatt_status_t ret_status = esp_ble_gattc_get_attr_count(gattc_if,
+                                                                    conn_id,
+                                                                    ESP_GATT_DB_CHARACTERISTIC, // ESP_GATT_DB_ALL ,,,
+                                                                    1,
+                                                                    65535,
+                                                                    INVALID_HANDLE,
+                                                                    &count);
+        if (ret_status != ESP_GATT_OK)
+        {
+            ESP_LOGE(TAG_BLE_GATTC, "esp_ble_gattc_get_attr_count error, %d", __LINE__);
+            break;
+        }
+
+        if (count > 0)
+        {
+            // static esp_gattc_char_elem_t *char_elem_result   = NULL;
+            esp_gattc_char_elem_t *char_elem_result = (esp_gattc_char_elem_t *)malloc(sizeof(esp_gattc_char_elem_t) * count);
+            if (!char_elem_result)
+            {
+                ESP_LOGE(TAG_BLE_GATTC, "gattc no mem");
+                break;
+            }
+            else
+            {
+                memset(char_elem_result, 0xff, sizeof(esp_gattc_char_elem_t) * count);
+                ret_status = esp_ble_gattc_get_all_char(gattc_if,
+                                                        conn_id,
+                                                        1,
+                                                        65535,
+                                                        char_elem_result,
+                                                        &count,
+                                                        offset);
+                if (ret_status != ESP_GATT_OK)
+                {
+                    ESP_LOGE(TAG_BLE_GATTC, "esp_ble_gattc_get_all_char error, %d", __LINE__);
+                    free(char_elem_result);
+                    char_elem_result = NULL;
+                    break;
+                }
+                if (count > 0)
+                {
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        esp_gattc_char_elem_t &val = char_elem_result[i];
+                        std::string info;
+
+                        info.append(std::format( "handle: {} ", val.char_handle));
+                        info.append(format_uuid(val.uuid));
+                        info.append(" Ability to:");
+
+                        if (val.properties & ESP_GATT_CHAR_PROP_BIT_BROADCAST)
+                            info.append("broadcast; ");
+                        if (val.properties & ESP_GATT_CHAR_PROP_BIT_READ)
+                            info.append("read; ");
+                        if (val.properties & ESP_GATT_CHAR_PROP_BIT_WRITE_NR)
+                            info.append("write without response; ");
+                        if (val.properties & ESP_GATT_CHAR_PROP_BIT_WRITE)
+                            info.append("write; ");
+                        if (val.properties & ESP_GATT_CHAR_PROP_BIT_NOTIFY)
+                            info.append("notify; ");
+                        if (val.properties & ESP_GATT_CHAR_PROP_BIT_INDICATE)
+                            info.append("indicate; ");
+                        if (val.properties & ESP_GATT_CHAR_PROP_BIT_AUTH)
+                            info.append("authenticate; ");
+                        if (val.properties & ESP_GATT_CHAR_PROP_BIT_EXT_PROP)
+                            info.append("Has extended properties;");
+
+                        ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "%s" LOG_ANSI_COLOR_RESET, info.c_str());
+
+                        esp_ble_gattc_read_char(gattc_if, conn_id, val.char_handle, ESP_GATT_AUTH_REQ_NONE);
+
+                        // if (char_elem_result[i].uuid.len == ESP_UUID_LEN_128)
+                        //{
+                        //     if (char_elem_result[i].properties & ESP_GATT_CHAR_PROP_BIT_NOTIFY && memcmp(char_elem_result[i].uuid.uuid.uuid128, notification_source, 16) == 0)
+                        //     {
+                        //         gl_profile_tab[PROFILE_A_APP_ID].notification_source_handle = char_elem_result[i].char_handle;
+                        //         esp_ble_gattc_register_for_notify(gattc_if,
+                        //                                           gl_profile_tab[PROFILE_A_APP_ID].remote_bda,
+                        //                                           char_elem_result[i].char_handle);
+                        //         ESP_LOGI(TAG_BLE_GATTC, "Find Apple noticification source char");
+                        //     }
+                        //     else if (char_elem_result[i].properties & ESP_GATT_CHAR_PROP_BIT_NOTIFY && memcmp(char_elem_result[i].uuid.uuid.uuid128, data_source, 16) == 0)
+                        //     {
+                        //         gl_profile_tab[PROFILE_A_APP_ID].data_source_handle = char_elem_result[i].char_handle;
+                        //         esp_ble_gattc_register_for_notify(gattc_if,
+                        //                                           gl_profile_tab[PROFILE_A_APP_ID].remote_bda,
+                        //                                           char_elem_result[i].char_handle);
+                        //         ESP_LOGI(TAG_BLE_GATTC, "Find Apple data source char");
+                        //     }
+                        //     else if (char_elem_result[i].properties & ESP_GATT_CHAR_PROP_BIT_WRITE && memcmp(char_elem_result[i].uuid.uuid.uuid128, control_point, 16) == 0)
+                        //     {
+                        //         gl_profile_tab[PROFILE_A_APP_ID].contol_point_handle = char_elem_result[i].char_handle;
+                        //         ESP_LOGI(TAG_BLE_GATTC, "Find Apple control point char");
+                        //     }
+                        // }
+                    }
+                }
+            }
+            free(char_elem_result);
+            char_elem_result = NULL;
+        }
+
+        break;
+    }
+
+    
+    case ESP_GATTC_DIS_SRVC_CMPL_EVT: /*!< When the ble discover service complete, the event comes */
+    {
+        if (param->search_cmpl.status == ESP_GATT_OK)
+        {
+            ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "BLE discover service complete, conn_id = %d" LOG_ANSI_COLOR_RESET, param->search_cmpl.conn_id);
+        }
+        else
+        {
+            ESP_LOGE(TAG_BLE_GATTC, LOG_GATTC_COLOR "BLE discover service failed: %d" LOG_ANSI_COLOR_RESET, param->search_cmpl.status);
         }
         break;
     }
 
     default:
-        ESP_LOGE(TAG_BLE_GATTC, "esp_gattc_callback !!! event: %d", (int)event);
+        ESP_LOGE(TAG_BLE_GATTC, LOG_GATTC_COLOR "esp_gattc_callback !!! event: %d" LOG_ANSI_COLOR_RESET, (int)event);
         break;
     }
 }
+
+#pragma endregion
 
 void ble_init(void)
 {
@@ -681,8 +949,8 @@ void ble_init(void)
     //    return;
 
     // BLE 5.0
-    //if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gap_set_ext_scan_params(&ext_scan_params)))
-    //    return;
+    if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gap_set_ext_scan_params(&ext_scan_params)))
+        return;
 
     //    connectHR();
 

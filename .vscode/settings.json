@@ -71,7 +71,8 @@
         "thread": "cpp",
         "esp_event.h": "c",
         "iomanip": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "cstring": "cpp"
     },
     "editor.minimap.scale": 2,
     "editor.minimap.showSlider": "always",
