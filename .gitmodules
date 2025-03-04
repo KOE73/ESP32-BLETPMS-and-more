@@ -1,0 +1,3 @@
+[submodule "lib/yabt/bluetooth-SIG"]
+	path = lib/yabt/bluetooth-SIG
+	url = https://bitbucket.org/bluetooth-SIG/public.git
