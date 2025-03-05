@@ -17,6 +17,8 @@
 
 #include "bluetooth-SIG/company_identifiers.h"
 
+#include "yabt_utils.hpp"
+
 // Теги для логирования
 static const char *TAG_BLE = "BLE";
 static const char *TAG_BLE_CALLBACK = "BLE_CB";
@@ -185,6 +187,12 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
     case ESP_GAP_BLE_EXT_ADV_REPORT_EVT:
     {
         esp_ble_gap_ext_adv_report_t *report = &param->ext_adv_report.params;
+
+        yabt::BleGapExtAdvReport Report(param->ext_adv_report.params);
+
+        auto name1 = Report.getCompleteLocalName();
+        if (name1.has_value())
+            ESP_LOGI(TAG_BLE_CALLBACK, " ++++ %s", name1.value().c_str());
 
         if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
         {
@@ -358,9 +366,9 @@ void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report)
 // Обработчик BLE-событий
 void esp_gap_cb(esp_ble_gap_ext_adv_report_t &report)
 {
-    const char* d= get_company_name(0x0100);
+    const char *d = get_company_name(0x0100);
     ESP_LOGI(TAG_BLE_CALLBACK, "%s", d);
-  
+
     // Список всех типов
     esp_ble_adv_data_type types[] = {
         ESP_BLE_AD_TYPE_FLAG, ESP_BLE_AD_TYPE_16SRV_PART, ESP_BLE_AD_TYPE_16SRV_CMPL,
@@ -717,7 +725,6 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         break;
     }
 
-
     case ESP_GATTC_READ_CHAR_EVT:
     {
         auto &read = param->read;
@@ -732,7 +739,7 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
             static uint16_t device_name_handle = 0; // Дескриптор Device Name (0x2A00)
             // Проверяем, является ли это Device Name (0x2A00)
             if (len > 0 && device_name_handle == 0)
-            { 
+            {
                 // Предполагаем, что это первый читаемый handle
                 device_name_handle = read.handle;
                 std::string device_name(reinterpret_cast<const char *>(value), len);
@@ -747,7 +754,6 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         }
         break;
     }
- 
 
     /* GATT service discovery result is got */
     case ESP_GATTC_SEARCH_RES_EVT:
@@ -841,7 +847,7 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
                         esp_gattc_char_elem_t &val = char_elem_result[i];
                         std::string info;
 
-                        info.append(std::format( "handle: {} ", val.char_handle));
+                        info.append(std::format("handle: {} ", val.char_handle));
                         info.append(format_uuid(val.uuid));
                         info.append(" Ability to:");
 
@@ -900,7 +906,6 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         break;
     }
 
-    
     case ESP_GATTC_DIS_SRVC_CMPL_EVT: /*!< When the ble discover service complete, the event comes */
     {
         if (param->search_cmpl.status == ESP_GATT_OK)

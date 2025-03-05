@@ -25,3 +25,9 @@ git submodule update --init --recursive
 git submodule deinit -f lib/yabt/bluetooth-SIG
 rm -rf lib/yabt/bluetooth-SIG
 git rm --cached lib/yabt/bluetooth-SIG
+
+
+
+# For generate source
+
+ pip install pyyaml
