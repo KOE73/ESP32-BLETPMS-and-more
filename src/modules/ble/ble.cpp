@@ -190,6 +190,20 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
 
         yabt::BleGapExtAdvReport Report(param->ext_adv_report.params);
 
+        ESP_LOGI(TAG_BLE_CALLBACK, " ++++ %s", Report.getMapKeysAsString().c_str());
+
+        auto manufacturerId = Report.getManufacturerId();
+        if (manufacturerId.has_value())
+            ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, " !!!! Id= %d", manufacturerId.value());
+
+        auto manufacturerData = Report.getManufacturerData();
+        if (manufacturerData.has_value())
+            ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, manufacturerData.value().data(), manufacturerData.value().size_bytes());
+
+        auto manufacturerName = Report.getManufacturerName();
+        if (manufacturerName.has_value())
+            ESP_LOGI(TAG_BLE_CALLBACK, " !!!! %s", manufacturerName.value().c_str());
+
         auto name1 = Report.getCompleteLocalName();
         if (name1.has_value())
             ESP_LOGI(TAG_BLE_CALLBACK, " ++++ %s", name1.value().c_str());

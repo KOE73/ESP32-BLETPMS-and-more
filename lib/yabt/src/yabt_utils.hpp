@@ -22,10 +22,16 @@
 #include "esp_bt_main.h"
 #include "esp_gap_ble_api.h"
 
+#include "bluetooth-SIG\ad_types.h"
+#include "bluetooth-SIG\company_identifiers.h"
+
 namespace yabt
 {
 
-    // using bt_device_addr_t = std::array<uint8_t, 6>;
+    uint16_t swapBytes(uint16_t value)
+    {
+        return ((value & 0xFF) << 8) | ((value >> 8) & 0xFF);
+    }
 
     struct BtDeviceAddr : public std::array<uint8_t, 6>
     {
@@ -151,6 +157,24 @@ namespace yabt
             }
         }
 
+        std::string getMapKeysAsString()
+        {
+            std::ostringstream oss;
+            bool first = true;
+
+            for (const auto &[key, value] : parsed_data)
+            {
+                if (!first)
+                    oss << ", ";
+
+                oss << get_ad_types_name(static_cast<uint8_t>(key));
+
+                first = false;
+            }
+
+            return oss.str();
+        }
+
         // Получение флагов (ESP_BLE_AD_TYPE_FLAG)
         // TODO flag decode to bool
         std::optional<uint8_t> getFlags() const
@@ -263,6 +287,27 @@ namespace yabt
         std::optional<std::span<const uint8_t>> getManufacturerData() const
         {
             return getRawData(ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE);
+        }
+
+        std::optional<uint16_t> getManufacturerId() const
+        {
+            auto it = parsed_data.find(ESP_BLE_AD_TYPE_ADV_INT);
+            if (it != parsed_data.end() && it->second.size() >= 2)
+            {
+                uint16_t value = (((uint16_t)it->second.data()[0]) ) | (((uint16_t)it->second.data()[1]) << 8);
+                return value;
+            }
+            return std::nullopt;
+        }
+
+        std::optional<std::string> getManufacturerName() const
+        {
+            auto id =getManufacturerId();
+            if (id.has_value())
+            {
+                return get_company_name(id.value());
+            }
+            return std::nullopt;
         }
 
 #pragma region TODO
