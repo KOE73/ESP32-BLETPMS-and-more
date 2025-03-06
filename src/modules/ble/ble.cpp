@@ -190,19 +190,28 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
 
         yabt::BleGapExtAdvReport Report(param->ext_adv_report.params);
 
+        ESP_LOGI(TAG_BLE_CALLBACK, " ~~~~ %s", Report.getAddr().toString().c_str());
+        ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, param->ext_adv_report.params.adv_data, param->ext_adv_report.params.adv_data_len);
+
         ESP_LOGI(TAG_BLE_CALLBACK, " ++++ %s", Report.getMapKeysAsString().c_str());
 
-        auto manufacturerId = Report.getManufacturerId();
-        if (manufacturerId.has_value())
-            ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, " !!!! Id= %d", manufacturerId.value());
+        auto flags = Report.getFlags();
+        if (flags.has_value())
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, " !!!! Flags:  %x %s", flags.value(),Report.getActiveFlagsDescription().value_or("?").c_str());
+        }
 
         auto manufacturerData = Report.getManufacturerData();
         if (manufacturerData.has_value())
+        {
             ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, manufacturerData.value().data(), manufacturerData.value().size_bytes());
 
-        auto manufacturerName = Report.getManufacturerName();
-        if (manufacturerName.has_value())
+            auto manufacturerId = Report.getManufacturerId();
+            ESP_LOGI(TAG_BLE_CALLBACK, " !!!! Id= %d", manufacturerId.value());
+
+            auto manufacturerName = Report.getManufacturerName();
             ESP_LOGI(TAG_BLE_CALLBACK, " !!!! %s", manufacturerName.value().c_str());
+        }
 
         auto name1 = Report.getCompleteLocalName();
         if (name1.has_value())

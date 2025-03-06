@@ -6,8 +6,8 @@ REPO_URL = "https://bitbucket.org/bluetooth-SIG/public.git"
 LOCAL_REPO_PATH = "lib/yabt/bluetooth-SIG"
 YAML_FILE_PATH = os.path.join(LOCAL_REPO_PATH, "assigned_numbers/core/ad_types.yaml")
 SOURCE_PATH = "lib/yabt/src/bluetooth-SIG"
-SOURCE_H_FILE_PATH = os.path.join(SOURCE_PATH, "ad_types.h")
-SOURCE_C_FILE_PATH = os.path.join(SOURCE_PATH, "ad_types.c")
+SOURCE_H_FILE_PATH = os.path.join(SOURCE_PATH, "ad_types.hpp")
+SOURCE_C_FILE_PATH = os.path.join(SOURCE_PATH, "ad_types.cpp")
 
 # Step 1: Clone or update the repository
 #def update_repo():
@@ -28,22 +28,14 @@ def parse_yaml_and_generate_c():
 #ifndef AD_TYPES_H
 #define AD_TYPES_H
 
-#include <stdint.h>
+#include <string>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-const char* get_ad_types_name(uint8_t code);
-
-#ifdef __cplusplus
-}
-#endif
+std::string get_ad_types_name(uint8_t code)
 
 #endif // AD_TYPES_H
 """
     
-    source_content = """#include "ad_types.h"
+    source_content = """#include "ad_types.hpp"
 
 #include <stddef.h>
 
@@ -62,13 +54,18 @@ static const KeyValue data[] = {
     source_content += """    { 0, NULL }
 };
 
-const char* get_ad_types_name(uint8_t code) {
-    for (size_t i = 0; data[i].name != NULL; i++) {
-        if (data[i].value == code) {
+std::string get_ad_types_name(uint8_t code)
+{
+    for (size_t i = 0; data[i].name != nullptr; i++)
+    {
+        if (data[i].value == code)
+        {
             return data[i].name;
         }
     }
-    return "Unknown";
+    std::ostringstream oss;
+    oss << "Unknown [" << static_cast<int>(code) << "]";
+    return oss.str();
 }
 """
     
