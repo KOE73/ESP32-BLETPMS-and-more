@@ -1,13 +1,14 @@
-#include "company_identifiers.h"
+#include "company_identifiers.hpp"
 
 #include <stddef.h>
+#include <sstream>
 
 typedef struct {
     uint16_t value;
     const char* name;
-} CompanyIdentifier;
+} KeyValue;
 
-static const CompanyIdentifier companies[] = {
+static const KeyValue data[] = {
     { 0x0000, "Ericsson AB" },
     { 0x0001, "Nokia Mobile Phones" },
     { 0x0002, "Intel Corp." },
@@ -3762,14 +3763,18 @@ static const CompanyIdentifier companies[] = {
     { 0x0EAB, "STEYR Sport GmbH" },
     { 0x0EAC, "Dynetrex Solutions Inc." },
     { 0x0EAD, "OPTRON Co., Ltd." },
-    { 0, NULL }
 };
 
-const char* get_company_name(uint16_t code) {
-    for (size_t i = 0; companies[i].name != NULL; i++) {
-        if (companies[i].value == code) {
-            return companies[i].name;
+std::string get_company_identifiers_name(uint16_t code)
+{
+    for (size_t i = 0; data[i].name != nullptr; i++)
+    {
+        if (data[i].value == code)
+        {
+            return data[i].name;
         }
     }
-    return "Unknown";
+    std::ostringstream oss;
+    oss << "Unknown [" << static_cast<int>(code) << "]";
+    return oss.str();
 }

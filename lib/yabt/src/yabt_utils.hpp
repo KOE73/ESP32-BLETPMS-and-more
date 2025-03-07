@@ -23,8 +23,8 @@
 #include "esp_bt_main.h"
 #include "esp_gap_ble_api.h"
 
-#include "bluetooth-SIG\ad_types.hpp"
-#include "bluetooth-SIG\company_identifiers.h"
+#include "bluetooth-SIG\assigned_numbers\core\ad_types.hpp"
+#include "bluetooth-SIG\assigned_numbers\company_identifiers\company_identifiers.hpp"
 
 namespace yabt
 {
@@ -65,116 +65,6 @@ namespace yabt
         std::string toString() const;
     };
 
-    // struct BtDeviceAddr : public std::array<uint8_t, 6>
-    //{
-    //     using std::array<uint8_t, 6>::array; // Наследуем конструкторы std::array
-    //
-    //    explicit BtDeviceAddr(const BtDeviceAddrSpan &span)
-    //    {
-    //        std::copy(span.data.begin(), span.data.end(), this->begin());
-    //    }
-    //
-    //    BtDeviceAddr &operator=(const BtDeviceAddrSpan &span)
-    //    {
-    //        std::copy(span.data.begin(), span.data.end(), this->begin());
-    //        return *this;
-    //    }
-    //
-    //    BtDeviceAddr &operator=(const esp_bd_addr_t &addr)
-    //    {
-    //        std::copy(std::begin(addr), std::end(addr), this->begin());
-    //        return *this;
-    //    }
-    //
-    //    BtDeviceAddr &operator=(const esp_bd_addr_t *addr)
-    //    {
-    //        std::copy(std::begin(*addr), std::end(*addr), this->begin());
-    //        return *this;
-    //    }
-    //
-    //    bool operator==(const esp_bd_addr_t &addr) const
-    //    {
-    //        return std::equal(this->begin(), this->end(), std::begin(addr));
-    //    }
-    //
-    //    bool operator!=(const esp_bd_addr_t &addr) const
-    //    {
-    //        return !(*this == addr);
-    //    }
-    //
-    //    bool operator==(const BtDeviceAddrSpan &span) const
-    //    {
-    //        return std::equal(this->begin(), this->end(), span.data.begin());
-    //    }
-    //
-    //    bool operator!=(const BtDeviceAddrSpan &span) const
-    //    {
-    //        return !(*this == span);
-    //    }
-    //
-    //    std::string toString() const
-    //    {
-    //        std::ostringstream oss;
-    //        oss << std::hex << std::uppercase << std::setfill('0'); // Настраиваем формат: HEX, заглавные буквы, заполнение нулями
-    //
-    //        // Используем итераторы для обхода массива
-    //        for (auto it = begin(); it != end(); ++it)
-    //        {
-    //            oss << std::setw(2) << static_cast<unsigned>(*it);
-    //            if (it != end() - 1)
-    //                oss << ":";
-    //        }
-    //
-    //        return oss.str();
-    //    }
-    //};
-    //
-    // struct BtDeviceAddrSpan
-    //{
-    //    std::span<const uint8_t, 6> data;
-    //
-    //    explicit BtDeviceAddrSpan(const esp_bd_addr_t &addr) : data(addr) {}
-    //    explicit BtDeviceAddrSpan(const esp_bd_addr_t *addr) : data(*addr) {}
-    //
-    //    bool operator==(const esp_bd_addr_t &addr) const
-    //    {
-    //        return std::equal(data.begin(), data.end(), std::begin(addr));
-    //    }
-    //
-    //    bool operator!=(const esp_bd_addr_t &addr) const
-    //    {
-    //        return !(*this == addr);
-    //    }
-    //
-    //    bool operator==(const BtDeviceAddr &addr) const
-    //    {
-    //        return std::equal(data.begin(), data.end(), addr.begin());
-    //    }
-    //
-    //    bool operator!=(const BtDeviceAddr &addr) const
-    //    {
-    //        return !(*this == addr);
-    //    }
-    //
-    //    /// @brief Formats the Bluetooth device address as a string in the format "XX:XX:XX:XX:XX:XX".
-    //    ///        Each byte is converted to a two-digit hexadecimal value, separated by colons.
-    //    /// @return A string representation of the Bluetooth address.
-    //    std::string toString() const
-    //    {
-    //        std::ostringstream oss;
-    //        oss << std::hex << std::uppercase << std::setfill('0'); // HEX, заглавные, нули
-    //
-    //        for (auto it = data.begin(); it != data.end(); ++it)
-    //        {
-    //            oss << std::setw(2) << static_cast<unsigned>(*it);
-    //            if (it != data.end() - 1)
-    //                oss << ":";
-    //        }
-    //
-    //        return oss.str();
-    //    }
-    //};
-
     /// @bri Все данные из esp_ble_gap_ext_adv_report_t в т.ч. полученные из process_adv_data.
     ///      Формируется из esp_ble_gap_ext_adv_report_t.
     ///     Используется при поиске, если адрес неизвестен и надо передать данные в поисковые обработчики .
@@ -186,88 +76,231 @@ namespace yabt
         const BtDeviceAddrSpan addr_;
         std::map<esp_ble_adv_data_type, std::span<const uint8_t>> parsed_data;
 
-        // Универсальный метод для получения 1-байтовых и 2-байтовых значений
+#pragma region Common
+
         template <typename T>
-        std::optional<T> getSingleValue(esp_ble_adv_data_type type) const
-        {
-            auto it = parsed_data.find(type);
-            if (it != parsed_data.end() && it->second.size() == sizeof(T))
-            {
-                T value;
-                std::memcpy(&value, it->second.data(), sizeof(T));
-                return value;
-            }
-            return std::nullopt;
-        }
+        std::optional<T> getSingleValue(esp_ble_adv_data_type type) const;
 
-        // Получение строки
-        std::optional<std::string> getString(esp_ble_adv_data_type type) const
-        {
-            auto it = parsed_data.find(type);
-            if (it != parsed_data.end() && !it->second.empty())
-            {
-                return std::string(reinterpret_cast<const char *>(it->second.data()), it->second.size());
-            }
-            return std::nullopt;
-        }
+        std::optional<std::string> getString(esp_ble_adv_data_type type) const;
 
-        // Универсальный метод для получения UUID разных размеров
         template <typename T>
-        std::vector<T> getUUIDs(esp_ble_adv_data_type type) const
-        {
-            std::vector<T> uuids;
-            auto it = parsed_data.find(type);
-            if (it != parsed_data.end() && it->second.size() % sizeof(T) == 0)
-            {
-                size_t count = it->second.size() / sizeof(T);
-                const uint8_t *data = it->second.data();
-                for (size_t i = 0; i < count; ++i)
-                {
-                    T uuid;
-                    std::memcpy(&uuid, data + i * sizeof(T), sizeof(T));
-                    uuids.push_back(uuid);
-                }
-            }
-            return uuids;
-        }
+        std::vector<T> getUUIDs(esp_ble_adv_data_type type) const;
 
-        // Получение "сырых" данных, если нужен доступ ко всему блоку
-        std::optional<std::span<const uint8_t>> getRawData(esp_ble_adv_data_type type) const
-        {
-            auto it = parsed_data.find(type);
-            if (it != parsed_data.end() && !it->second.empty())
-            {
-                return it->second;
-            }
-            return std::nullopt;
-        }
+        std::optional<std::span<const uint8_t>> getRawData(esp_ble_adv_data_type type) const;
+
+        std::string getAddrTypeStr(uint8_t addr_type) const;
+
+        std::string getPhyStr(uint8_t phy) const;
+
+        //    // Универсальный метод для получения 1-байтовых и 2-байтовых значений
+        //    template <typename T>
+        //    std::optional<T> getSingleValue(esp_ble_adv_data_type type) const
+        //    {
+        //        auto it = parsed_data.find(type);
+        //        if (it != parsed_data.end() && it->second.size() == sizeof(T))
+        //        {
+        //            T value;
+        //            std::memcpy(&value, it->second.data(), sizeof(T));
+        //            return value;
+        //        }
+        //        return std::nullopt;
+        //    }
+        //
+        //    // Получение строки
+        //    std::optional<std::string> getString(esp_ble_adv_data_type type) const
+        //    {
+        //        auto it = parsed_data.find(type);
+        //        if (it != parsed_data.end() && !it->second.empty())
+        //        {
+        //            return std::string(reinterpret_cast<const char *>(it->second.data()), it->second.size());
+        //        }
+        //        return std::nullopt;
+        //    }
+        //
+        //    // Универсальный метод для получения UUID разных размеров
+        //    template <typename T>
+        //    std::vector<T> getUUIDs(esp_ble_adv_data_type type) const
+        //    {
+        //        std::vector<T> uuids;
+        //        auto it = parsed_data.find(type);
+        //        if (it != parsed_data.end() && it->second.size() % sizeof(T) == 0)
+        //        {
+        //            size_t count = it->second.size() / sizeof(T);
+        //            const uint8_t *data = it->second.data();
+        //            for (size_t i = 0; i < count; ++i)
+        //            {
+        //                T uuid;
+        //                std::memcpy(&uuid, data + i * sizeof(T), sizeof(T));
+        //                uuids.push_back(uuid);
+        //            }
+        //        }
+        //        return uuids;
+        //    }
+        //
+        //    // Получение "сырых" данных, если нужен доступ ко всему блоку
+        //    std::optional<std::span<const uint8_t>> getRawData(esp_ble_adv_data_type type) const
+        //    {
+        //        auto it = parsed_data.find(type);
+        //        if (it != parsed_data.end() && !it->second.empty())
+        //        {
+        //            return it->second;
+        //        }
+        //        return std::nullopt;
+        //    }
+        //
+        //    std::string getAddrTypeStr(uint8_t addr_type) const
+        //    {
+        //        switch (addr_type)
+        //        {
+        //        case BLE_ADDR_TYPE_PUBLIC:
+        //            return "Public address";
+        //        case BLE_ADDR_TYPE_RANDOM:
+        //            return "Random address";
+        //        case BLE_ADDR_TYPE_RPA_PUBLIC:
+        //            return "Resolvable public";
+        //        case BLE_ADDR_TYPE_RPA_RANDOM:
+        //            return "Resolvable random";
+        //        default:
+        //            return "Unknown(" + std::to_string(addr_type) + ")";
+        //        }
+        //    }
+        //
+        //    std::string getPhyStr(uint8_t phy) const
+        //    {
+        //        switch (phy)
+        //        {
+        //        case 0:
+        //            return "No preference";
+        //        case ESP_BLE_GAP_PHY_1M:
+        //            return "1 Mbps";
+        //        case ESP_BLE_GAP_PHY_2M:
+        //            return "2 Mbps";
+        //        case ESP_BLE_GAP_PHY_CODED:
+        //            return "Coded signal";
+        //        default:
+        //            return "Unknown(" + std::to_string(phy) + ")";
+        //        }
+        //    }
+
+        // TODO
+        template <typename T>
+        std::string joinUUIDs(const std::vector<T> &uuids) const;
+
+        std::string uuidToHexString(uint16_t uuid) const;
+        std::string uuidToHexString(uint32_t uuid) const;
+        std::string uuidToHexString(const std::array<uint8_t, 16> &uuid) const;
+
+#pragma endregion
 
     public:
         explicit BleGapExtAdvReport(const esp_ble_gap_ext_adv_report_t &report) : BleGapExtAdvReport(&report) {}
-        explicit BleGapExtAdvReport(const esp_ble_gap_ext_adv_report_t *report)
-            : raw_report(report), addr_(report->addr)
-        {
-            std::span<const uint8_t> adv_data((uint8_t*)raw_report->adv_data, raw_report->adv_data_len);
-            auto iterator = adv_data.begin();
-            auto end = adv_data.end();
+        explicit BleGapExtAdvReport(const esp_ble_gap_ext_adv_report_t *report);
+        //    : raw_report(report), addr_(report->addr)
+        //{
+        //    std::span<const uint8_t> adv_data((uint8_t *)raw_report->adv_data, raw_report->adv_data_len);
+        //    auto iterator = adv_data.begin();
+        //    auto end = adv_data.end();
+        //
+        //    while (iterator < end /*raw_report->adv_data_len*/)
+        //    {
+        //        size_t length = static_cast<size_t>(*iterator); // Длина данных в данном сегменте
+        //        if (std::distance(iterator, end) < (length + 1))
+        //            break; // Проверка на выход за границы
+        //        if (length == 0)
+        //            break;
+        //
+        //        esp_ble_adv_data_type type = static_cast<esp_ble_adv_data_type>(*(iterator + 1)); // Тип данных (следующий байт после длины)
+        //
+        //        // Добавляем в карту
+        //        parsed_data[type] = std::span<const uint8_t>(iterator + 2, length - 1); // data_segment;
+        //
+        //        // Перемещаемся к следующему сегменту
+        //        iterator += length + 1;
+        //    }
+        //}
 
-            while (iterator < end /*raw_report->adv_data_len*/)
-            {
-                size_t length = static_cast<size_t>(*iterator); // Длина данных в данном сегменте
-                if (std::distance(iterator, end) < (length + 1))
-                    break; // Проверка на выход за границы
-                if (length == 0)
-                    break;
+#pragma region Main
 
-                esp_ble_adv_data_type type = static_cast<esp_ble_adv_data_type>(*(iterator + 1)); // Тип данных (следующий байт после длины)
+        const BtDeviceAddrSpan &getAddr() const { return addr_; }
 
-                // Добавляем в карту
-                parsed_data[type] = std::span<const uint8_t>(iterator + 2, length - 1); // data_segment;
+        // TODO ??? IDF Version?
+        std::string getEventTypeStr() const;
+        //{
+        //    switch (raw_report->event_type)
+        //    {
+        //    case ADV_TYPE_IND:
+        //        return "Connectable, Scannable";
+        //    case ADV_TYPE_DIRECT_IND_HIGH:
+        //        return "Directed, High Duty";
+        //    case ADV_TYPE_SCAN_IND:
+        //        return "Scannable";
+        //    case ADV_TYPE_NONCONN_IND:
+        //        return "Non-connectable";
+        //    case ADV_TYPE_DIRECT_IND_LOW:
+        //        return "Directed, Low Duty";
+        //
+        //    case ESP_BLE_LEGACY_ADV_TYPE_IND:
+        //        return "ESP_BLE_LEGACY_ADV_TYPE_IND";
+        //    case ESP_BLE_LEGACY_ADV_TYPE_DIRECT_IND:
+        //        return "ESP_BLE_LEGACY_ADV_TYPE_DIRECT_IND";
+        //    case ESP_BLE_LEGACY_ADV_TYPE_SCAN_IND:
+        //        return "ESP_BLE_LEGACY_ADV_TYPE_SCAN_IND";
+        //    case ESP_BLE_LEGACY_ADV_TYPE_NONCON_IND:
+        //        return "ESP_BLE_LEGACY_ADV_TYPE_NONCON_IND";
+        //    case ESP_BLE_LEGACY_ADV_TYPE_SCAN_RSP_TO_ADV_IND:
+        //        return "ESP_BLE_LEGACY_ADV_TYPE_SCAN_RSP_TO_ADV_IND";
+        //    case ESP_BLE_LEGACY_ADV_TYPE_SCAN_RSP_TO_ADV_SCAN_IND:
+        //        return "ESP_BLE_LEGACY_ADV_TYPE_SCAN_RSP_TO_ADV_SCAN_IND";
+        //
+        //    default:
+        //        return "Unknown(" + std::to_string(raw_report->event_type) + ")";
+        //    }
+        //}
 
-                // Перемещаемся к следующему сегменту
-                iterator += length + 1;
-            }
-        }
+        std::string getAddrTypeStr() const { return getAddrTypeStr(raw_report->addr_type); }
+
+        std::string getPrimaryPhyStr() const { return getPhyStr(raw_report->primary_phy); }
+
+        std::string getSecondlyPhyStr() const { return getPhyStr(raw_report->secondly_phy); }
+
+        std::string getSidStr() const { return std::to_string(raw_report->sid); }
+
+        std::string getTxPowerStr() const { return std::to_string(raw_report->tx_power) + " dBm"; }
+
+        std::string getRssiStr() const { return std::to_string(raw_report->rssi) + " dBm"; }
+
+        std::string getPerAdvIntervalStr() const;
+        //{
+        //    float interval_ms = raw_report->per_adv_interval * 1.25f;
+        //    std::ostringstream oss;
+        //    oss << raw_report->per_adv_interval << " (" << interval_ms << " ms)";
+        //    return oss.str();
+        //}
+
+        std::string getDirAddrTypeStr() { return getAddrTypeStr(raw_report->dir_addr_type); }
+
+        std::string getDirAddrStr() const;
+        //{
+        //    BtDeviceAddrSpan s(raw_report->dir_addr);
+        //    return s.toString();
+        //}
+
+        std::string getDataStatusStr() const;
+        //{
+        //    switch (raw_report->data_status)
+        //    {
+        //    case ESP_BLE_GAP_EXT_ADV_DATA_COMPLETE:
+        //        return "Data complete";
+        //    case ESP_BLE_GAP_EXT_ADV_DATA_INCOMPLETE:
+        //        return "Data partial";
+        //    case ESP_BLE_GAP_EXT_ADV_DATA_TRUNCATED:
+        //        return "Data cut";
+        //    default:
+        //        return "Unknown(" + std::to_string(raw_report->data_status) + ")";
+        //    }
+        //}
+
+#pragma endregion
 
         std::string getMapKeysAsString()
         {
@@ -286,10 +319,8 @@ namespace yabt
 
             return oss.str();
         }
-
-        const BtDeviceAddrSpan &getAddr() const { return addr_; }
-
 #pragma region Flags
+
         // Получение флагов (ESP_BLE_AD_TYPE_FLAG)
         // TODO flag decode to bool
         std::optional<uint8_t> getFlags() const
@@ -452,31 +483,22 @@ namespace yabt
         }
 
         // Получение UUID сервисов (16, 32, 128 бит)
-        std::vector<uint16_t> get16BitServiceUUIDs(bool complete = false) const
-        {
-            return getUUIDs<uint16_t>(complete ? ESP_BLE_AD_TYPE_16SRV_CMPL : ESP_BLE_AD_TYPE_16SRV_PART);
-        }
-
-        std::vector<uint32_t> get32BitServiceUUIDs(bool complete = false) const
-        {
-            return getUUIDs<uint32_t>(complete ? ESP_BLE_AD_TYPE_32SRV_CMPL : ESP_BLE_AD_TYPE_32SRV_PART);
-        }
-
-        std::vector<std::array<uint8_t, 16>> get128BitServiceUUIDs(bool complete = false) const
-        {
-            return getUUIDs<std::array<uint8_t, 16>>(complete ? ESP_BLE_AD_TYPE_128SRV_CMPL : ESP_BLE_AD_TYPE_128SRV_PART);
-        }
+        std::vector<uint16_t> get16BitServiceUUIDs(bool complete = false) const { return getUUIDs<uint16_t>(complete ? ESP_BLE_AD_TYPE_16SRV_CMPL : ESP_BLE_AD_TYPE_16SRV_PART); }
+        std::vector<uint32_t> get32BitServiceUUIDs(bool complete = false) const { return getUUIDs<uint32_t>(complete ? ESP_BLE_AD_TYPE_32SRV_CMPL : ESP_BLE_AD_TYPE_32SRV_PART); }
+        std::vector<std::array<uint8_t, 16>> get128BitServiceUUIDs(bool complete = false) const { return getUUIDs<std::array<uint8_t, 16>>(complete ? ESP_BLE_AD_TYPE_128SRV_CMPL : ESP_BLE_AD_TYPE_128SRV_PART); }
 
         // Получение UUID сервисов (16, 32, 128 бит)
-        std::vector<uint16_t> get16BitSolServiceUUIDs(bool complete = false) const
-        {
-            return getUUIDs<uint16_t>(ESP_BLE_AD_TYPE_SOL_SRV_UUID);
-        }
+        std::vector<uint16_t> get16BitSolServiceUUIDs() const { return getUUIDs<uint16_t>(ESP_BLE_AD_TYPE_SOL_SRV_UUID); }
+        std::vector<std::array<uint8_t, 16>> get128BitSolServiceUUIDs() const { return getUUIDs<std::array<uint8_t, 16>>(ESP_BLE_AD_TYPE_128SOL_SRV_UUID); }
 
-        std::vector<std::array<uint8_t, 16>> get128BitSolServiceUUIDs(bool complete = false) const
-        {
-            return getUUIDs<std::array<uint8_t, 16>>(ESP_BLE_AD_TYPE_128SOL_SRV_UUID);
-        }
+        // TODO to options. String join optimize
+        std::string get16BitServiceUUIDsAsString(bool complete = false) const { return joinUUIDs(get16BitServiceUUIDs(complete)); }
+        std::string get32BitServiceUUIDsAsString(bool complete = false) const { return joinUUIDs(get32BitServiceUUIDs(complete)); }
+        std::string get128BitServiceUUIDsAsString(bool complete = false) const { return joinUUIDs(get128BitServiceUUIDs(complete)); }
+
+        // Конвертация в строку
+        std::string get16BitSolServiceUUIDsAsString() const { return joinUUIDs(get16BitSolServiceUUIDs()); }
+        std::string get128BitSolServiceUUIDsAsString() const { return joinUUIDs(get128BitSolServiceUUIDs()); }
 
         // 0x00 — Central.
         // 0x01 — Peripheral.
@@ -556,13 +578,15 @@ namespace yabt
             auto id = getManufacturerId();
             if (id.has_value())
             {
-                return get_company_name(id.value());
+                return get_company_identifiers_name(id.value());
             }
             return std::nullopt;
         }
 
 #pragma region TODO
-        std::optional<std::span<const uint8_t>> get16BitServiceData(bool complete = false) const
+
+        // TODO [ Длина ] [ Тип данных ] [ UUID сервиса (2 байта) ] [ Данные сервиса ]
+        std::optional<std::span<const uint8_t>> get16BitServiceData() const
         {
             auto it = parsed_data.find(ESP_BLE_AD_TYPE_SERVICE_DATA);
             if (it != parsed_data.end() && it->second.size() == 3)

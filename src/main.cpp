@@ -42,6 +42,8 @@ void print_partition_table()
     }
 }
 
+extern void lcd_main(void);
+
 extern "C" void app_main()
 {
 
@@ -50,9 +52,11 @@ extern "C" void app_main()
 
     for (int i = 0; i < 10; i++)
     {
-        vTaskDelay(pdMS_TO_TICKS(250)); // Задержка на 1000 миллисекунд
+        vTaskDelay(pdMS_TO_TICKS(50)); // Задержка на 1000 миллисекунд
         ESP_LOGI(TAG_MAIN, "%d", i);
     }
+
+    lcd_main();
 
     print_partition_table();
 
