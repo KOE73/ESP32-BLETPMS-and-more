@@ -1,4 +1,4 @@
-
+#pragma once
 
 #include "string.h"
 
@@ -302,7 +302,7 @@ namespace yabt
 
 #pragma endregion
 
-        std::string getMapKeysAsString()
+        std::string getMapKeysAsString() const
         {
             std::ostringstream oss;
             bool first = true;

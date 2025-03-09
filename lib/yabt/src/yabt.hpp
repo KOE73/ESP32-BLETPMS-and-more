@@ -1,4 +1,4 @@
-
+#pragma once
 
 #include "string.h"
 
@@ -15,41 +15,17 @@
 #include <span>
 
 // #include "esp_system.h"
-// #include "esp_log.h"
+#include "esp_log.h"
 // #include "esp_event.h"
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include "esp_gap_ble_api.h"
+// #include "esp_event_loop.h"
 
-using bt_device_addr_t = std::array<uint8_t, 6>;
+#include "yabt_utils.hpp"
+#include "yabt_events.hpp"
 
-struct bt_device_addr_t : public std::array<uint8_t, 6>
-{
-    using std::array<uint8_t, 6>::array; // Наследуем конструкторы std::array
-
-    // Оператор присваивания из esp_bd_addr_t (uint8_t[6])
-    bt_device_addr_t &operator=(const esp_bd_addr_t &addr)
-    {
-        std::copy(std::begin(addr), std::end(addr), this->begin());
-        return *this;
-    }
-    bt_device_addr_t &operator=(const esp_bd_addr_t *addr)
-    {
-        std::copy(std::begin(*addr), std::end(*addr), this->begin());
-        return *this;
-    }
-
-    // Оператор сравнения с esp_bd_addr_t (uint8_t[6])
-    bool operator==(const esp_bd_addr_t &addr) const
-    {
-        return std::equal(this->begin(), this->end(), std::begin(addr));
-    }
-
-    bool operator!=(const esp_bd_addr_t &addr) const
-    {
-        return !(*this == addr);
-    }
-};
+#define TAG_BTController "BTController"
 
 // Для фабрики. Пока думаю зачем
 #define REGISTER_CLASS(Derived)                                                                                                      \
@@ -66,13 +42,13 @@ struct bt_device_addr_t : public std::array<uint8_t, 6>
 
 namespace yabt
 {
-    class bhandler_gap_base;
+    class GapHandlerBase;
 
     // Фабрика. Пока думаю зачем
     class Factory
     {
     public:
-        using CreateFunc = std::unique_ptr<bhandler_gap_base> (*)();
+        using CreateFunc = std::unique_ptr<GapHandlerBase> (*)();
 
         static Factory &instance()
         {
@@ -85,9 +61,9 @@ namespace yabt
             creators[name] = func;
         }
 
-        std::vector<std::unique_ptr<bhandler_gap_base>> create_all()
+        std::vector<std::unique_ptr<GapHandlerBase>> create_all()
         {
-            std::vector<std::unique_ptr<bhandler_gap_base>> objects;
+            std::vector<std::unique_ptr<GapHandlerBase>> objects;
             for (const auto &[name, func] : creators)
             {
                 objects.push_back(func());
@@ -99,19 +75,65 @@ namespace yabt
         std::unordered_map<std::string, CreateFunc> creators;
     };
 
+    class BtDeviceRecognizerBase;
+    class BTController
+    {
+    private:
+        std::vector<BtDeviceRecognizerBase *> recognizers_;
+        std::map<BtDeviceAddr, GapHandlerBase> known_addreses_Handlers_;
+        static esp_event_loop_handle_t event_loop_;
 
-  
+    public:
+        explicit BTController();
+        BTController(const BTController &) = delete;
+        BTController &operator=(const BTController &) = delete;
+        BTController(BTController &&) = delete;
+        BTController &operator=(BTController &&) = delete;
+
+        static BTController &getInstance()
+        {
+            static BTController instance; // Создаётся один раз и хранится в памяти
+            return instance;
+        }
+
+        esp_event_loop_handle_t getEventLoop() const { return event_loop_; }
+
+        void AddBtDeviceRecognizer(BtDeviceRecognizerBase *recognizer)
+        {
+            recognizers_.push_back(recognizer);
+        }
+
+        bool GapHanler(BleGapExtAdvReport report);
+    };
+
+    class BtDeviceRecognizerBase
+    {
+    public:
+        virtual ~BtDeviceRecognizerBase() = default;
+        virtual const char *getName() = 0;
+        virtual bool GapHandler(const BleGapExtAdvReport &report) = 0;
+        virtual void Log(const BleGapExtAdvReport &report)
+        {
+            ESP_LOGI("BtDeviceRecognizerBase", "%s", getName());
+        };
+        virtual void SendEvent(esp_event_loop_handle_t yabt_loop, const BleGapExtAdvReport &report) {};
+
+    protected:
+        BtDeviceRecognizerBase()
+        {
+            BTController::getInstance().AddBtDeviceRecognizer(this);
+        }
+    };
+
     /// @brief Список обработчиков с известными адресами
-    std::vector<bhandler_gap_base> known_handlers;
-    std::map<bt_device_addr_t, bhandler_gap_base> known_addreses;
 
-    class bhandler_gap_base
+    class GapHandlerBase
     {
     private:
         /* data */
     public:
-        bhandler_gap_base(/* args */) {};
-        ~bhandler_gap_base() {};
+        GapHandlerBase(/* args */) {};
+        ~GapHandlerBase() {};
 
         void handle(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
     };
@@ -119,7 +141,7 @@ namespace yabt
     class bhandler_gap_addr
     {
     protected:
-        bt_device_addr_t addr_;
+        BtDeviceAddr addr_;
 
     public:
         bhandler_gap_addr(esp_bd_addr_t *esp_addr)
@@ -157,7 +179,7 @@ namespace yabt
         {
             if (addr_ != param->addr)
                 return false;
-        }
-    }
+        };
+    };
 
 } // namespace yabt

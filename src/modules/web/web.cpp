@@ -12,6 +12,12 @@
 #include "web.hpp"
 
 #include "ArduinoJson.h"
+#include "yabt.hpp"
+#include "yabt_events.hpp"
+#include "yabt_tpms.hpp"
+#include "modules/diagnostic/diagnostic.hpp"
+
+
 // #include "WebServer.hpp"
 
 // using WebServer::WebServer;
@@ -96,6 +102,43 @@ void event_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id,
     ESP_LOGI("EV_XxX", "%s : %li", event_base, event_id);
 }
 
+void yabt_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+    if (event_id == yabt::yabt_events_t::YABT_EVENT_TPMS)
+    {
+        ESP_LOGI("EV_XxX", "Receive YABT_EVENT_TPMS");
+
+        yabt::TPMSData &data = *((yabt::TPMSData *)event_data);
+        JsonDocument json;
+        // json.(128);
+
+        json["msgType"] = "yabt_tpms";
+        json["id"] = data.id;
+        json["ManufacturerName"] = data.manufacturerName;
+        json["sensorNumber"] = data.sensorNumber;
+        json["sensorAddress"] = data.sensorAddress;
+        json["pressureRaw"] = data.pressureRaw;
+        json["temperatureRaw"] = data.temperatureRaw;
+        json["batteryPercentage"] = data.batteryPercentage;
+        json["alarmFlag"] = data.alarmFlag;
+        json["pressure_kPa"] = data.pressure_kPa;
+        json["pressure_mbar"] = data.pressure_mbar;
+        json["pressure_Psi"] = data.pressure_Psi;
+        json["pressure_Bar"] = data.pressure_Bar;
+        json["pressure_KgCm2"] = data.pressure_KgCm2;
+        json["pressure_Atm"] = data.pressure_Atm;
+        json["temperatureC"] = data.temperatureC;
+        json["temperatureF"] = data.temperatureF;
+
+        std::string json_str;
+        serializeJson(json, json_str);
+
+        ws_h.send(json_str.c_str());
+
+        return;
+    }
+}
+
 // Could it be done through events, without direct calls?
 esp_err_t start_web_server(void)
 {
@@ -119,6 +162,7 @@ esp_err_t start_web_server(void)
 
     esp_event_handler_register(SYS_INNER_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL);
     esp_event_handler_register(ESP_EVENT_ANY_BASE, ESP_EVENT_ANY_ID, event_handler_any, NULL);
+    esp_event_handler_register_with(yabt::BTController::getInstance().getEventLoop(), yabt::YABT_EVENT, ESP_EVENT_ANY_ID, yabt_handler_any, NULL);
 
     xTaskCreate(
         [](void *param)
@@ -126,7 +170,8 @@ esp_err_t start_web_server(void)
             ESP_LOGI(TAG_WEB, "Task EVENT started!");
             int c = 0;
 
-            DynamicJsonDocument json(100);
+            JsonDocument json;
+
             std::string output;
 
             while (true)
@@ -146,6 +191,7 @@ esp_err_t start_web_server(void)
 
                 events_h.send(output.c_str());
                 ws_h.send(output.c_str());
+                ws_h.send(print_task_diagnostics_json().c_str());
 
                 vTaskDelay(pdMS_TO_TICKS(3000));
                 c++;

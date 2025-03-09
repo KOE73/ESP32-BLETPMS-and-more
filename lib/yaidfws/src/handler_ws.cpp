@@ -174,6 +174,37 @@ namespace yaidfws
         delete rsp; // NOLINT(cppcoreguidelines-owning-memory)
     }
 
+    // Структура для передачи параметров
+    typedef struct
+    {
+        httpd_handle_t httpd_handle; // Server
+        int socket_fd;               // ФД сокета для отправки
+        char *data;                  // Данные для отправки
+        size_t len;                  // Длина данных
+    } WorkArgs;
+
+    // Неасинхронная функция для отправки данных
+    void send_data_work(void *arg)
+    {
+
+        WorkArgs *args = (WorkArgs *)arg;
+
+        ESP_LOGI(TAG_RESPONSE, "send_data_work )))))))))))))))))))) %s", args->data);
+
+        httpd_ws_frame_t ws_res;
+        memset(&ws_res, 0, sizeof(httpd_ws_frame_t));
+        ws_res.type = HTTPD_WS_TYPE_TEXT;
+        ws_res.payload = (uint8_t *)args->data;
+        ws_res.len = args->len;
+
+        // Пример отправки через сокет (низкоуровневый подход)
+        httpd_ws_send_data_async(args->httpd_handle, args->socket_fd, &ws_res, [](esp_err_t err, int socket, void *arg)
+                                 { ESP_LOGI(TAG_RESPONSE, "send_data_work !!!!!!!!!!!!!!!!!!! %d", err); }, nullptr);
+
+        // Освобождаем память
+        free(args->data);
+        free(args);
+    }
     void AsyncWSSourceResponse::send(const char *message, uint32_t id, uint32_t reconnect)
     {
         if (this->_sockfd == 0)
@@ -182,27 +213,6 @@ namespace yaidfws
         }
 
         std::string ev;
-
-        ////if (reconnect)
-        ////{
-        ////  ev.append("retry: ", sizeof("retry: ") - 1);
-        ////  ev.append(to_string(reconnect));
-        ////  ev.append(CRLF_STR, CRLF_LEN);
-        ////}
-        ////
-        ////if (id)
-        ////{
-        ////  ev.append("id: ", sizeof("id: ") - 1);
-        ////  ev.append(to_string(id));
-        ////  ev.append(CRLF_STR, CRLF_LEN);
-        ////}
-
-        // if (event && *event)
-        //{
-        //   ev.append("event: ", sizeof("event: ") - 1);
-        //   ev.append(event);
-        //   ev.append(CRLF_STR, CRLF_LEN);
-        // }
 
         if (!message)
         {
@@ -213,14 +223,44 @@ namespace yaidfws
         httpd_ws_frame_t ws_res;
         memset(&ws_res, 0, sizeof(httpd_ws_frame_t));
         ws_res.type = HTTPD_WS_TYPE_TEXT;
-        ws_res.payload = (uint8_t *)message;
+        // ws_res.payload = (uint8_t *)message;
         ws_res.len = strlen(message);
 
-        auto err = httpd_ws_send_data(this->_httpd_handle, this->_sockfd, &ws_res);
-        // httpd_ws_send_data_async(req, &ws_res);
-        // httpd_ws_send_frame(req, &ws_res);
+        ws_res.payload = (uint8_t *)malloc(ws_res.len+1);
+        strcpy((char *)ws_res.payload, message);
 
-        //ESP_LOGI(TAG_RESPONSE, "httpd_ws_send_data %i", err);
+        // auto err = httpd_ws_send_data(this->_httpd_handle, this->_sockfd, &ws_res);
+
+        // Пример отправки через сокет (низкоуровневый подход)
+        httpd_ws_send_data_async(_httpd_handle, _sockfd, &ws_res, [](esp_err_t err, int socket, void *arg)
+                                 { ESP_LOGI(TAG_RESPONSE, "Async WS err:%d", err); 
+                                free(arg);
+                                ESP_LOGI(TAG_RESPONSE, "Async WS Free"); }, ws_res.payload);
+
+        return;
+
+        //   WorkArgs *args = (WorkArgs *)malloc(sizeof(WorkArgs));
+        //   if (!args)
+        //   {
+        //       ESP_LOGE(TAG_RESPONSE, "Ошибка выделения памяти");
+        //       return;
+        //   }
+
+        //   args->httpd_handle = _httpd_handle;
+        //   args->socket_fd = _sockfd;
+        //   args->data = strdup(message); // Копируем данные
+        //   args->len = strlen(message);
+
+        //   if (ESP_ERROR_CHECK_WITHOUT_ABORT(httpd_queue_work(_httpd_handle, send_data_work, args)))
+        //   {
+        //       ESP_LOGI(TAG_RESPONSE, "httpd_queue_work EEEEEEEEEEEEEEEEEEEEE");
+
+        //       free(args->data);
+        //       free(args);
+        //   }
+        //   ESP_LOGI(TAG_RESPONSE, "httpd_queue_work (((((((((((((((((((((");
+
+        //   // ESP_LOGI(TAG_RESPONSE, "httpd_ws_send_data %i", err);
     }
 
 #pragma endregion

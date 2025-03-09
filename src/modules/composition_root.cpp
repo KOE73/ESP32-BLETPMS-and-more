@@ -7,10 +7,11 @@
 #include <nvs.h>
 #include <nvs_handle.hpp>
 
-#include <modules/ble/ble.hpp>
-#include <modules/wifi/wifi.hpp>
-#include <modules/web/web.hpp>
-#include <modules/store/store.hpp>
+#include "modules/ble/ble.hpp"
+#include "modules/wifi/wifi.hpp"
+#include "modules/web/web.hpp"
+#include "modules/store/store.hpp"
+#include "modules/diagnostic/diagnostic.hpp"
 
 // pio run -t menuconfig
 
@@ -46,6 +47,8 @@ void list_nvs_entries()
 void init_main(void)
 {
     ESP_LOGI(TAG_MAIN, "Initializing ESP32...");
+    init_diagnostics();
+    print_task_diagnostics();
 
     // Инициализация файловой системы
     fs_init();

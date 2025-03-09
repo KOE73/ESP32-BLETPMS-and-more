@@ -18,6 +18,7 @@
 #include "bluetooth-SIG/assigned_numbers/company_identifiers/company_identifiers.hpp"
 
 #include "yabt_utils.hpp"
+#include "yabt.hpp"
 
 // Теги для логирования
 static const char *TAG_BLE = "BLE";
@@ -40,7 +41,7 @@ esp_ble_scan_params_t scan_params = {
     .scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL, /* BLE_SCAN_FILTER_ALLOW_ALL BLE_SCAN_FILTER_ALLOW_ONLY_WLST BLE_SCAN_FILTER_ALLOW_UND_RPA_DIR BLE_SCAN_FILTER_ALLOW_WLIST_RPA_DIR */
     .scan_interval = 0x50,                           /*  */
     .scan_window = 0x30,                             /*  */
-    .scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE      /* BLE_SCAN_DUPLICATE_DISABLE BLE_SCAN_DUPLICATE_ENABLE (BLE5)BLE_SCAN_DUPLICATE_ENABLE_RESET*/
+    .scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE     /* BLE_SCAN_DUPLICATE_DISABLE BLE_SCAN_DUPLICATE_ENABLE (BLE5)BLE_SCAN_DUPLICATE_ENABLE_RESET*/
 };
 
 esp_ble_ext_scan_params_t ext_scan_params = {
@@ -188,50 +189,51 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
     {
         esp_ble_gap_ext_adv_report_t *report = &param->ext_adv_report.params;
 
-        yabt::BleGapExtAdvReport Report(param->ext_adv_report.params);
+        const yabt::BleGapExtAdvReport Report(param->ext_adv_report.params);
+        yabt::BTController::getInstance().GapHanler(Report);
+
+        // return true;
 
         ESP_LOGI(TAG_BLE_CALLBACK, " ~~~~ %s", Report.getAddr().toString().c_str());
-        ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, param->ext_adv_report.params.adv_data, param->ext_adv_report.params.adv_data_len);
+        // ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, param->ext_adv_report.params.adv_data, param->ext_adv_report.params.adv_data_len);
 
-        ESP_LOGI(TAG_BLE_CALLBACK, " ++++ 16BitServiceUUIDs     %s", Report.get16BitServiceUUIDsAsString(false).c_str());
-        ESP_LOGI(TAG_BLE_CALLBACK, " ++++ 16BitServiceUUIDs     %s", Report.get16BitServiceUUIDsAsString(true).c_str());
-        ESP_LOGI(TAG_BLE_CALLBACK, " ++++ 32BitServiceUUIDs     %s", Report.get32BitServiceUUIDsAsString(false).c_str());
-        ESP_LOGI(TAG_BLE_CALLBACK, " ++++ 32BitServiceUUIDs     %s", Report.get32BitServiceUUIDsAsString(true).c_str());
-        ESP_LOGI(TAG_BLE_CALLBACK, " ++++ 128BitServiceUUIDs    %s", Report.get128BitServiceUUIDsAsString(false).c_str());
-        ESP_LOGI(TAG_BLE_CALLBACK, " ++++ 128BitServiceUUIDs    %s", Report.get128BitServiceUUIDsAsString(true).c_str());
+        // ESP_LOGI(TAG_BLE_CALLBACK, " +16BitServiceUUIDs         %s", Report.get16BitServiceUUIDsAsString(false).c_str());
+        // ESP_LOGI(TAG_BLE_CALLBACK, " +16BitServiceUUIDs  compl  %s", Report.get16BitServiceUUIDsAsString(true).c_str());
+        // ESP_LOGI(TAG_BLE_CALLBACK, " +32BitServiceUUIDs         %s", Report.get32BitServiceUUIDsAsString(false).c_str());
+        // ESP_LOGI(TAG_BLE_CALLBACK, " +32BitServiceUUIDs  compl  %s", Report.get32BitServiceUUIDsAsString(true).c_str());
+        // ESP_LOGI(TAG_BLE_CALLBACK, " +128BitServiceUUIDs        %s", Report.get128BitServiceUUIDsAsString(false).c_str());
+        // ESP_LOGI(TAG_BLE_CALLBACK, " +128BitServiceUUIDs compl  %s", Report.get128BitServiceUUIDsAsString(true).c_str());
+        //
+        // ESP_LOGI(TAG_BLE_CALLBACK, " +16BitSolServiceUUIDs      %s", Report.get16BitSolServiceUUIDsAsString().c_str());
+        // ESP_LOGI(TAG_BLE_CALLBACK, " +128BitSolServiceUUIDs     %s", Report.get128BitSolServiceUUIDsAsString().c_str());
 
-        ESP_LOGI(TAG_BLE_CALLBACK, " ++++ 16BitSolServiceUUIDs  %s", Report.get16BitSolServiceUUIDsAsString().c_str());
-        ESP_LOGI(TAG_BLE_CALLBACK, " ++++ 128BitSolServiceUUIDs %s", Report.get128BitSolServiceUUIDsAsString().c_str());
+        // ESP_LOGI(TAG_BLE_CALLBACK, " +%s", Report.getMapKeysAsString().c_str());
 
-
-
-        ESP_LOGI(TAG_BLE_CALLBACK, " ++++ %s", Report.getMapKeysAsString().c_str());
-
-        auto flags = Report.getFlags();
-        if (flags.has_value())
-        {
-            ESP_LOGI(TAG_BLE_CALLBACK, " !!!! Flags:  %x %s", flags.value(), Report.getActiveFlagsDescription().value_or("?").c_str());
-        }
-
-        auto manufacturerData = Report.getManufacturerData();
-        if (manufacturerData.has_value())
-        {
-            ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, manufacturerData.value().data(), manufacturerData.value().size_bytes());
-
-            auto manufacturerId = Report.getManufacturerId();
-            ESP_LOGI(TAG_BLE_CALLBACK, " !!!! Id= %d", manufacturerId.value());
-
-            auto manufacturerName = Report.getManufacturerName();
-            ESP_LOGI(TAG_BLE_CALLBACK, " !!!! %s", manufacturerName.value().c_str());
-        }
+        // auto flags = Report.getFlags();
+        // if (flags.has_value())
+        //{
+        //     ESP_LOGI(TAG_BLE_CALLBACK, " !!!! Flags:  %x %s", flags.value(), Report.getActiveFlagsDescription().value_or("?").c_str());
+        // }
+        //
+        // auto manufacturerData = Report.getManufacturerData();
+        // if (manufacturerData.has_value())
+        //{
+        //    ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, manufacturerData.value().data(), manufacturerData.value().size_bytes());
+        //
+        //    auto manufacturerId = Report.getManufacturerId();
+        //    ESP_LOGI(TAG_BLE_CALLBACK, " !!!! Id= %d", manufacturerId.value());
+        //
+        //    auto manufacturerName = Report.getManufacturerName();
+        //    ESP_LOGI(TAG_BLE_CALLBACK, " !!!! %s", manufacturerName.value().c_str());
+        //}
 
         auto name1 = Report.getCompleteLocalName();
         if (name1.has_value())
             ESP_LOGI(TAG_BLE_CALLBACK, " ++++ %s", name1.value().c_str());
 
-        //if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
+        // if (memcmp(report->addr, target_addr, ESP_BD_ADDR_LEN) == 0)
         //{
-        //     ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
+        //      ESP_LOGI(TAG_BLE_CALLBACK, "Found COOSPO H6...");
 
         //    process_ext_adv_report(*report);
         //    esp_gap_cb(*report);

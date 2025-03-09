@@ -82,7 +82,15 @@ static void wifi_event_handler(void *ctx, esp_event_base_t event_base,
     {
         switch (event_id)
         {
+        case WIFI_EVENT_STA_START:
+        {
+            ESP_LOGI(TAG_WIFI_EVENT, "WiFi STA started");
+            ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_connect());
+            break;
+        }
+
         case WIFI_EVENT_STA_CONNECTED:
+        {
             wifi_event_sta_connected_t *event = (wifi_event_sta_connected_t *)event_data;
             ESP_LOGI(TAG_WIFI_EVENT, "Connected to Wi-Fi network AP:");
             ESP_LOGI(TAG_WIFI_EVENT, "  SSID: %s", event->ssid);
@@ -90,15 +98,14 @@ static void wifi_event_handler(void *ctx, esp_event_base_t event_base,
             ESP_LOGI(TAG_WIFI_EVENT, "  Channel: %d", event->channel);
             ESP_LOGI(TAG_WIFI_EVENT, "  Auth mode: %d", event->authmode);
             break;
+        }
 
-            // case WIFI_EVENT_STA_START:
-            //     ESP_LOGI(TAG_WIFI_EVENT, "WiFi STA started");
-            //     esp_wifi_connect();
-            //     break;
-            // case WIFI_EVENT_STA_DISCONNECTED:
-            //     ESP_LOGI(TAG_WIFI_EVENT, "WiFi STA disconnected");
-            //     esp_wifi_connect();
-            //     break;
+        case WIFI_EVENT_STA_DISCONNECTED:
+        {
+            ESP_LOGI(TAG_WIFI_EVENT, "WiFi STA disconnected");
+            ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_connect());
+            break;
+        }
         }
         return;
     }

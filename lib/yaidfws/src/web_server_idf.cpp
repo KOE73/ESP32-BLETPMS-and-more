@@ -51,7 +51,7 @@ namespace yaidfws
 
     if (httpd_start(&this->_httpd_handle, &config) == ESP_OK)
     {
-      ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "Web2 Server Begin 2" LOG_ANSI_COLOR_RESET);
+      ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "Web2 Server Started" LOG_ANSI_COLOR_RESET);
 
       const httpd_uri_t handler_get = {
           .uri = "",
@@ -79,6 +79,9 @@ namespace yaidfws
           .user_ctx = this,
       };
       httpd_register_uri_handler(this->_httpd_handle, &handler_options);
+
+      ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "Web2 Server Register Handlers" LOG_ANSI_COLOR_RESET);
+
     }
   }
 

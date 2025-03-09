@@ -1,0 +1,70 @@
+
+
+#include "string.h"
+
+// #include <iostream>
+#include <vector>
+#include <memory>
+#include <unordered_map>
+#include <string>
+#include <array>
+#include <iostream>
+#include <iomanip>
+#include <map>
+#include <optional>
+#include <span>
+
+// #include "esp_system.h"
+#include "esp_log.h"
+// #include "esp_event.h"
+#include "esp_bt.h"
+#include "esp_bt_main.h"
+#include "esp_gap_ble_api.h"
+#include "esp_event.h"
+
+#include "yabt.hpp"
+
+#define TAG_BTController "BTController"
+
+namespace yabt
+{
+    esp_event_loop_handle_t BTController::event_loop_;
+
+    BTController::BTController()
+    {
+        // Используйте uxTaskGetStackHighWaterMark для мониторинга использования стека и корректировки его размера, если это необходимо.
+
+        
+        esp_event_loop_args_t loop_args = {
+            .queue_size = 10,         // Размер очереди событий
+            .task_name = "yabt_loop", // Имя задачи
+            .task_priority = 5,       // Приоритет задачи
+            .task_stack_size = 6000,  // Размер стека
+            .task_core_id = 0         // Ядро процессора (0 или 1)
+        };
+
+        // Создание пользовательского цикла событий
+        ESP_ERROR_CHECK(esp_event_loop_create(&loop_args, &event_loop_));
+    };
+
+    bool BTController::GapHanler(const BleGapExtAdvReport report)
+    {
+
+        // 1. обработка по известным адресам
+
+        // 2. Перебираем все распознаватели
+        for (auto &recognizer : recognizers_)
+        {
+            if (recognizer->GapHandler(report))
+            {
+                recognizer->Log(report);
+                recognizer->SendEvent(event_loop_, report);
+
+                return true; // Завершаем обработку
+            }
+        }
+
+        return false; // Если ни один распознаватель не вернул true
+    }
+
+} // namespace yabt

@@ -25,6 +25,11 @@
 
             </div>
         </div>
+        <div class="column">
+            <div id="diagnostic-task-grid">
+
+            </div>
+        </div>
 
     </div>
 
@@ -84,7 +89,60 @@
                     div = document.getElementById('mainTick_id');
                     div.innerText = data.id;
                     break;
+                case 'diagnostic':
+                    document.getElementById('diagnostic-task-grid').innerHTML = diagnostic(data);
+                    break;
             }
+        }
+
+        function diagnostic(diagnosticData) {
+
+            // Сортировка задач по task_num
+            diagnosticData.tasks.sort((a, b) => b.rp - a.rp);
+
+            // Формирование HTML
+            let html = '<div class="diagnostic-grid-container">';
+
+            // Заголовки
+            html += `
+                <div class="grid-header">Name</div>
+                <div class="grid-header">Task#</div>
+                <div class="grid-header">S</div>
+                <div class="grid-header">P</div>
+                <div class="grid-header">Stack<br/>Free</div>
+                <div class="grid-header">Runtime</div>
+                <div class="grid-header">%</div>
+            `;
+
+            // Данные задач
+            diagnosticData.tasks.forEach(task => {
+                html += `
+                    <div class="grid-item">${task.name}</div>
+                    <div class="grid-item r">${task.tn}</div>
+                    <div class="grid-item">${task.s}</div>
+                    <div class="grid-item r">${task.p}</div>
+                    <div class="grid-item r">${task.sf}</div>
+                    <div class="grid-item r">${task.rt}</div>
+                    <div class="grid-item r">${task.rp}%</div>
+                `;
+            });
+
+            // Итоговые данные
+            html += `
+                <div class="grid-item" style="grid-column: span 7; text-align: left;">
+                    Total Tasks: ${diagnosticData.total_tasks}, Free Heap: ${formatNumberWithThinSpaces(diagnosticData.free_heap)} bytes
+                </div>
+            `;
+
+            html += '</div>';
+            return html;
+             
+
+        }
+
+        function formatNumberWithThinSpaces(number) {
+            // \u00A0 \u2009
+            return number.toLocaleString('en-US', { useGrouping: true }).replace(/,/g, '\u00A0');
         }
     </script>
 

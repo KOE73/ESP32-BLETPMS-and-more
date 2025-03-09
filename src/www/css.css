@@ -26,3 +26,33 @@ body {
     /*font-size: 1.2em;*/
     border-radius: 10px;
 }
+
+
+.diagnostic-grid-container {
+    font-family: monospace;
+    display: grid;
+    grid-template-columns: repeat(7, auto); /* 7 колонок для всех полей */
+    gap: 0px;
+    padding: 0px;
+    /*background-color: #f9f9f9;*/
+    border: 1px solid #ddd;
+    max-width: 1000px;
+
+    & .grid-header, 
+    & .grid-item {
+        padding: 0px 2px ;
+        text-align: left;
+        border: 1px solid #ccc;
+        white-space: nowrap;
+    }
+    
+    & .r {
+        text-align: right;
+    }
+    
+    .grid-header {
+        font-weight: bold;
+        /*background-color: #e0e0e0;*/
+    }
+
+}
