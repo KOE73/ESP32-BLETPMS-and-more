@@ -119,8 +119,7 @@ namespace yabt
     {
         ESP_LOGI(TAG_BTController, " **************************** Device recognized by: %s", getName());
 
-        auto a = report.getManufacturerData();
-        auto s = parseTPMSData(a.value());
+        auto s = parseTPMSData(report);
 
         ESP_LOGI(TAG_BTController, "Sensor Number: 0x%02X", s.sensorNumber);
         ESP_LOGI(TAG_BTController, "Sensor Address: 0x%06" PRIX32, s.sensorAddress);
@@ -145,8 +144,7 @@ namespace yabt
     {
         // ESP_LOGI("TAG_BTController", "PreSend YABT_EVENT_TPMS");
 
-        auto data = report.getManufacturerData();
-        auto tpmsData = parseTPMSData(data.value());
+        auto tpmsData = parseTPMSData(report);
 
         // Отправка
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(

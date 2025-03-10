@@ -11,6 +11,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "lvgl.h"
+
 #define LCD_H_RES 320   // Горизонтальное разрешение
 #define LCD_V_RES 170   // Вертикальное разрешение
 #define LCD_BUS_WIDTH 8 // Ширина шины I8080
@@ -38,8 +40,29 @@
 
 static const char *TAG = "T-Display-S3";
 
+// ESP
 static esp_lcd_panel_handle_t panel_handle = NULL;
 static esp_lcd_panel_io_handle_t io_handle = NULL;
+
+// LVGL
+static lv_display_t *disp; //
+static lv_color_t *lv_disp_buf;
+
+/*LVGL draw into this buffer, 1/10 screen size usually works well. The size is in bytes*/
+// Full buffer
+//#define DRAW_BUF_SIZE (LCD_H_RES * LCD_V_RES * (LV_COLOR_DEPTH / 8))
+#define DRAW_BUF_SIZE (LCD_H_RES * 5  * (LV_COLOR_DEPTH / 8)) // 5 can change
+//uint32_t draw_buf[DRAW_BUF_SIZE / 4];
+uint32_t *draw_buf1;//[DRAW_BUF_SIZE / 4];
+uint32_t *draw_buf2;//[DRAW_BUF_SIZE / 4];
+
+#if LV_USE_LOG != 0
+void my_print(lv_log_level_t level, const char *buf)
+{
+    LV_UNUSED(level);
+    ESP_LOGI("LVGL ***", "%s", buf);
+}
+#endif
 
 // Функция рисования линии (алгоритм Брезенхэма)
 void draw_line(int x0, int y0, int x1, int y1, uint16_t color)
@@ -68,6 +91,42 @@ void draw_line(int x0, int y0, int x1, int y1, uint16_t color)
             err += dx;
             y0 += sy;
         }
+    }
+}
+
+/* LVGL calls it when a rendered image needs to copied to the display*/
+void my_disp_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
+{
+    /*Copy `px map` to the `area`*/
+
+    /*For example ("my_..." functions needs to be implemented by you)
+    uint32_t w = lv_area_get_width(area);
+    uint32_t h = lv_area_get_height(area);
+
+    my_set_window(area->x1, area->y1, w, h);
+    my_draw_bitmaps(px_map, w * h);
+     */
+
+    int x1 = area->x1;
+    int y1 = area->y1;
+    int x2 = area->x2;
+    int y2 = area->y2;
+
+    ESP_LOGI("LVGL ***", " my_disp_flush xy xy %d-%d %d-%d", x1, y1, x2, y2);
+
+    // Отправляем блок пикселей на дисплей
+    esp_lcd_panel_draw_bitmap(panel_handle, x1, y1, x2 + 1, y2 + 1, px_map);
+
+    /*Call it to tell LVGL you are ready*/
+    lv_display_flush_ready(disp);
+}
+
+void lv_task(void *pvParameter)
+{
+    while (1)
+    {
+        lv_timer_handler();            // Обработка LVGL
+        vTaskDelay(pdMS_TO_TICKS(10)); // Задержка 10 мс (оптимально)
     }
 }
 
@@ -128,22 +187,24 @@ void lcd_main(void)
     ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
     ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_handle, true));       //?
     ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, false)); // ? Настройка ориентации
-    ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel_handle, true)); // ? 
+    ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel_handle, true));  // ?
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, true));
 
     // the gap is LCD panel specific, even panels with the same driver IC, can
     // have different gap value
     esp_lcd_panel_set_gap(panel_handle, 0, 35);
 
+    ESP_LOGI("LCD----------", "Pre heap_caps_calloc"); 
+
     // Очистка экрана (черный фон)
-    // uint16_t *buffer = (uint16_t *)calloc(LCD_H_RES * LCD_V_RES, sizeof(uint16_t));
     uint16_t *buffer = (uint16_t *)heap_caps_calloc(LVGL_LCD_BUF_SIZE, sizeof(uint16_t), MALLOC_CAP_DMA);
     std::span<uint16_t> s(buffer, LVGL_LCD_BUF_SIZE);
-  
-    std::fill(s.begin(), s.end(), 0x001E);
-    ESP_LOGI(TAG, "fill %d %d %x", s.size(),s.size_bytes(), s[100]);
-    // memset(buffer,  0x0010,LVGL_LCD_BUF_SIZE);
-    // uint16_t *buffer = (uint16_t *)calloc(LCD_MAX_TRANSFER_BYTES, 1);
+
+    ESP_LOGI("LCD----------", "Pre fill");
+
+    //std::fill(s.begin(), s.end(), 0x002E);
+    //ESP_LOGI(TAG, "fill %d %d %x", s.size(), s.size_bytes(), s[0]);
+
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, LCD_H_RES, LCD_V_RES, buffer));
     free(buffer);
 
@@ -152,5 +213,57 @@ void lcd_main(void)
 
     ESP_LOGI(TAG, "Line drawn successfully");
 
+    lv_init();
+
+    /* register print function for debugging */
+#if LV_USE_LOG != 0
+    // lv_log_register_print_cb(my_print);
+
+#endif
+
+    disp = lv_display_create(LCD_H_RES, LCD_V_RES);
+
+    lv_display_set_flush_cb(disp, my_disp_flush);
+
+    draw_buf1 = (uint32_t *)heap_caps_calloc(DRAW_BUF_SIZE, sizeof(uint8_t), MALLOC_CAP_DMA);
+    draw_buf2 = (uint32_t *)heap_caps_calloc(DRAW_BUF_SIZE, sizeof(uint8_t), MALLOC_CAP_DMA);
+
+    lv_display_set_buffers(disp, draw_buf1, draw_buf2,DRAW_BUF_SIZE /*sizeof(draw_buf)*/, LV_DISPLAY_RENDER_MODE_PARTIAL);
+
+    lv_obj_t *label = lv_label_create(lv_screen_active());
+
+    lv_label_set_text(label, "Hello KOE, I'm LVGL!");
+
+    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+
+    xTaskCreate(lv_task, "LVGL", 4096, NULL, 5, NULL);
+
+    // lv_demo_transform();
+
+    // lv_disp_buf = (lv_color_t *)heap_caps_malloc(LVGL_LCD_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    //
+    // lv_display_set_buffers(&disp_buf, lv_disp_buf, NULL, LVGL_LCD_BUF_SIZE);
+    // lv_display_set_draw_buffers(&disp_buf, lv_disp_buf, NULL, LVGL_LCD_BUF_SIZE);
+
     ESP_LOGI("LCD----------", "+");
 }
+
+/*
+
+
+static void lvgl_timer_callback(void *arg) {
+    lv_timer_handler();
+}
+
+void init_lvgl_timer() {
+    const esp_timer_create_args_t timer_args = {
+        .callback = &lvgl_timer_callback,
+        .name = "lvgl_timer"
+    };
+
+    esp_timer_handle_t lvgl_timer;
+    esp_timer_create(&timer_args, &lvgl_timer);
+    esp_timer_start_periodic(lvgl_timer, 10 * 1000);  // 10 мс (в микросекундах)
+}
+
+*/
