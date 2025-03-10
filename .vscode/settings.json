@@ -73,7 +73,8 @@
         "iomanip": "cpp",
         "iostream": "cpp",
         "cstring": "cpp",
-        "ranges": "cpp"
+        "ranges": "cpp",
+        "lv_demo_widgets.h": "c"
     },
     "editor.minimap.scale": 2,
     "editor.minimap.showSlider": "always",
