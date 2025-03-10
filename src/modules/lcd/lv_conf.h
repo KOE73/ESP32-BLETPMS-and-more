@@ -90,7 +90,8 @@
  * - LV_OS_WINDOWS
  * - LV_OS_MQX
  * - LV_OS_CUSTOM */
-#define LV_USE_OS   LV_OS_FREERTOS  // !!! LV_OS_NONE -> LV_OS_FREERTOS
+ //LV_OS_FREERTOS  // !!! LV_OS_NONE -> LV_OS_FREERTOS
+#define LV_USE_OS   LV_OS_FREERTOS
 
 #if LV_USE_OS == LV_OS_CUSTOM
     #define LV_OS_CUSTOM_INCLUDE <stdint.h>

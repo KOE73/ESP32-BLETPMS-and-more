@@ -11,7 +11,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "lvgl.h"
+#ifndef ESP_PLATFORM
+#define ESP_PLATFORM
+#endif
+
+#include "lvgl.h" 
 
 #define LCD_H_RES 320   // Горизонтальное разрешение
 #define LCD_V_RES 170   // Вертикальное разрешение

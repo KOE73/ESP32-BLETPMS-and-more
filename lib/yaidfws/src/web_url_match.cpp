@@ -1,5 +1,5 @@
 
-#ifdef USE_WEBSERVER
+//#ifdef USE_WEBSERVER
 
 #include "web_url_match.hpp"
 
@@ -47,4 +47,4 @@ namespace yaidfws
 
 } // namespace yaidfws
 
-#endif
+//#endif

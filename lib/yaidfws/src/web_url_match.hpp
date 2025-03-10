@@ -2,7 +2,7 @@
 
 // #include "list_entities.h"
 
-#ifdef USE_WEBSERVER
+//#ifdef USE_WEBSERVER
 // #include "esphome/core/component.h"
 // #include "esphome/core/controller.h"
 // #include "esphome/core/entity_base.h"
@@ -318,4 +318,4 @@ namespace yaidfws
 
 } // namespace yaidfws
 
-#endif // USE_WEBSERVER
+//#endif // USE_WEBSERVER
