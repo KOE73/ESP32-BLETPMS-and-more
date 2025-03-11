@@ -94,10 +94,13 @@ std::string print_task_diagnostics_json()
     }
 
     // Сбор данных о задачах
-    unsigned long total_runtime;
+    uint32_t total_runtime;
     taskENTER_CRITICAL(&diagnostics_mux);
     UBaseType_t actual_task_count = uxTaskGetSystemState(task_status, task_count, &total_runtime);
     taskEXIT_CRITICAL(&diagnostics_mux);
+
+    /* For percentage calculations. */
+    total_runtime /= 100UL;
 
     JsonDocument doc;
     doc["msgType"] = "diagnostic";
@@ -106,6 +109,8 @@ std::string print_task_diagnostics_json()
     JsonArray tasks_array = doc["tasks"].to<JsonArray>();
     for (UBaseType_t i = 0; i < actual_task_count; i++)
     {
+        uint32_t ulStatsAsPercentage = total_runtime > 0 ? task_status[i].ulRunTimeCounter / total_runtime : 0;
+
         JsonObject task = tasks_array.add<JsonObject>();
         task["name"] = task_status[i].pcTaskName;
         char state_str[2] = {state_to_char(task_status[i].eCurrentState), '\0'};
@@ -114,7 +119,7 @@ std::string print_task_diagnostics_json()
         task["sf"] = task_status[i].usStackHighWaterMark;
         task["tn"] = task_status[i].xTaskNumber;
         task["rt"] = task_status[i].ulRunTimeCounter;
-        task["rp"] = total_runtime > 0 ? (task_status[i].ulRunTimeCounter * 100) / total_runtime : 0;
+        task["rp"] = ulStatsAsPercentage;
     }
     doc["total_tasks"] = actual_task_count;
     doc["free_heap"] = heap_caps_get_free_size(MALLOC_CAP_8BIT);

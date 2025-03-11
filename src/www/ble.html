@@ -110,9 +110,10 @@
                 <div class="grid-header">S</div>
                 <div class="grid-header">P</div>
                 <div class="grid-header">Stack<br/>Free</div>
-                <div class="grid-header">Runtime</div>
+                
                 <div class="grid-header">%</div>
             `;
+            //<div class="grid-header">Runtime</div>
 
             // Данные задач
             diagnosticData.tasks.forEach(task => {
@@ -122,14 +123,14 @@
                     <div class="grid-item">${task.s}</div>
                     <div class="grid-item r">${task.p}</div>
                     <div class="grid-item r">${task.sf}</div>
-                    <div class="grid-item r">${task.rt}</div>
                     <div class="grid-item r">${task.rp}%</div>
                 `;
             });
+            // <div class="grid-item r">${task.rt}</div>
 
             // Итоговые данные
             html += `
-                <div class="grid-item" style="grid-column: span 7; text-align: left;">
+                <div class="grid-item" style="grid-column: span 6; text-align: left;">
                     Total Tasks: ${diagnosticData.total_tasks}, Free Heap: ${formatNumberWithThinSpaces(diagnosticData.free_heap)} bytes
                 </div>
             `;

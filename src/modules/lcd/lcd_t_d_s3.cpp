@@ -15,7 +15,8 @@
 #define ESP_PLATFORM
 #endif
 
-#include "lvgl.h" 
+#include "lvgl.h"
+#include "UI/ui.h"
 
 #define LCD_H_RES 320   // Горизонтальное разрешение
 #define LCD_V_RES 170   // Вертикальное разрешение
@@ -48,17 +49,76 @@ static const char *TAG = "T-Display-S3";
 static esp_lcd_panel_handle_t panel_handle = NULL;
 static esp_lcd_panel_io_handle_t io_handle = NULL;
 
+#define LCD_MODULE_CMD_1 0
+#if defined(LCD_MODULE_CMD_1)
+typedef struct
+{
+    uint8_t cmd;
+    uint8_t data[14];
+    uint8_t len;
+} lcd_cmd_t;
+
+/*
+    Taken from an example. Formally works without it.
+    Documentation generated ChatGPT. Data needs to be checked.
+
+    ST7789V Command List
+    ----------------------------------------------------------------------------------------------------------
+    | Command (HEX) | Parameters                     | Description                                           |
+    ----------------------------------------------------------------------------------------------------------
+    | 0x11         | {0}, 0 | 0x80                   | Sleep Out - Exits sleep mode (required, ~120ms delay) |
+    | 0x3A         | {0x05}                          | Color Mode - Sets pixel format (0x05 = RGB565, 16-bit)|
+    | 0xB2         | {0x0B, 0x0B, 0x00, 0x33, 0x33}  | Porch Control - Configures front and back porch times |
+    | 0xB7         | {0x75}                          | Gate Control - Controls VGH/VGL voltage levels        |
+    | 0xBB         | {0x28}                          | VCOM Setting - Adjusts VCOM voltage level             |
+    | 0xC0         | {0x2C}                          | LCM Control - Optimizes display performance           |
+    | 0xC2         | {0x01}                          | Enable VDV/VRH - Enables voltage settings             |
+    | 0xC3         | {0x1F}                          | VRH Setting - Sets VRH voltage                        |
+    | 0xC6         | {0x13}                          | Frame Rate Control - Adjusts display refresh rate     |
+    | 0xD0         | {0xA7}                          | Power Control 1 - Manages power regulation            |
+    | 0xD0         | {0xA4, 0xA1}                    | Power Control 2 - Additional power settings           |
+    | 0xD6         | {0xA1}                          | Display Inversion - Enables display inversion mode    |
+    | 0xE0         | {0xF0, 0x05, 0x0A, 0x06,        | Gamma Curve (Positive) - Fine-tunes color gamma curve |
+    |              |  0x06, 0x03, 0x2B, 0x32,        |                                                       |
+    |              |  0x43, 0x36, 0x11, 0x10,        |                                                       |
+    |              |  0x2B, 0x32}                    |                                                       |
+    | 0xE1         | {0xF0, 0x08, 0x0C, 0x0B,        | Gamma Curve (Negative) - Adjusts negative gamma curve |
+    |              |  0x09, 0x24, 0x2B, 0x22,        |                                                       |
+    |              |  0x43, 0x38, 0x15, 0x16,        |                                                       |
+    |              |  0x2F, 0x37}                    |                                                       |
+    ----------------------------------------------------------------------------------------------------------
+ */
+
+lcd_cmd_t lcd_st7789v[] = {
+    {0x11, {0}, 0 | 0x80},
+    {0x3A, {0x05}, 1},
+    {0xB2, {0x0B, 0x0B, 0x00, 0x33, 0x33}, 5},
+    {0xB7, {0x75}, 1},
+    {0xBB, {0x28}, 1},
+    {0xC0, {0x2C}, 1},
+    {0xC2, {0x01}, 1},
+    {0xC3, {0x1F}, 1},
+    {0xC6, {0x13}, 1},
+    {0xD0, {0xA7}, 1},
+    {0xD0, {0xA4, 0xA1}, 2},
+    {0xD6, {0xA1}, 1},
+    {0xE0, {0xF0, 0x05, 0x0A, 0x06, 0x06, 0x03, 0x2B, 0x32, 0x43, 0x36, 0x11, 0x10, 0x2B, 0x32}, 14},
+    {0xE1, {0xF0, 0x08, 0x0C, 0x0B, 0x09, 0x24, 0x2B, 0x22, 0x43, 0x38, 0x15, 0x16, 0x2F, 0x37}, 14},
+
+};
+#endif
+
 // LVGL
 static lv_display_t *disp; //
 static lv_color_t *lv_disp_buf;
 
 /*LVGL draw into this buffer, 1/10 screen size usually works well. The size is in bytes*/
 // Full buffer
-//#define DRAW_BUF_SIZE (LCD_H_RES * LCD_V_RES * (LV_COLOR_DEPTH / 8))
-#define DRAW_BUF_SIZE (LCD_H_RES * 5  * (LV_COLOR_DEPTH / 8)) // 5 can change
-//uint32_t draw_buf[DRAW_BUF_SIZE / 4];
-uint32_t *draw_buf1;//[DRAW_BUF_SIZE / 4];
-uint32_t *draw_buf2;//[DRAW_BUF_SIZE / 4];
+// #define DRAW_BUF_SIZE (LCD_H_RES * LCD_V_RES * (LV_COLOR_DEPTH / 8))
+#define DRAW_BUF_SIZE (LCD_H_RES * 5 * (LV_COLOR_DEPTH / 8)) // 5 can change
+// uint32_t draw_buf[DRAW_BUF_SIZE / 4];
+uint32_t *draw_buf1; //[DRAW_BUF_SIZE / 4];
+uint32_t *draw_buf2; //[DRAW_BUF_SIZE / 4];
 
 #if LV_USE_LOG != 0
 void my_print(lv_log_level_t level, const char *buf)
@@ -125,6 +185,23 @@ void my_disp_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
     lv_display_flush_ready(disp);
 }
 
+
+// Функция таймера для LVGL (обновляет LVGL каждые 1 мс)
+static void lv_tick_task(void *arg) {
+    lv_tick_inc(1);  // Увеличиваем LVGL тик на 1 мс
+}
+
+// Инициализация таймера
+void init_lvgl_timer(void) {
+    static esp_timer_handle_t lvgl_tick_timer = NULL;
+    esp_timer_create_args_t timer_args = {
+        .callback = &lv_tick_task,
+        .name = "lvgl_tick"
+    };
+    esp_timer_create(&timer_args, &lvgl_tick_timer);
+    esp_timer_start_periodic(lvgl_tick_timer, 1000); // 1 мс
+}
+
 void lv_task(void *pvParameter)
 {
     while (1)
@@ -183,7 +260,7 @@ void lcd_main(void)
     // Инициализация ST7789
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = PIN_NUM_RST,
-        .color_space = ESP_LCD_COLOR_SPACE_BGR,
+        .color_space = ESP_LCD_COLOR_SPACE_RGB,
         .bits_per_pixel = 16,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle));
@@ -198,24 +275,26 @@ void lcd_main(void)
     // have different gap value
     esp_lcd_panel_set_gap(panel_handle, 0, 35);
 
-    ESP_LOGI("LCD----------", "Pre heap_caps_calloc"); 
+#if defined(LCD_MODULE_CMD_1)
+    for (uint8_t i = 0; i < (sizeof(lcd_st7789v) / sizeof(lcd_cmd_t)); i++)
+    {
+        esp_lcd_panel_io_tx_param(io_handle, lcd_st7789v[i].cmd, lcd_st7789v[i].data, lcd_st7789v[i].len & 0x7f);
+        if (lcd_st7789v[i].len & 0x80)
+            vTaskDelay(pdMS_TO_TICKS(10)); // Задержка 10 мс (оптимально)
+    }
+#endif
 
-    // Очистка экрана (черный фон)
-    uint16_t *buffer = (uint16_t *)heap_caps_calloc(LVGL_LCD_BUF_SIZE, sizeof(uint16_t), MALLOC_CAP_DMA);
-    std::span<uint16_t> s(buffer, LVGL_LCD_BUF_SIZE);
+    ESP_LOGI("LCD----------", "Pre heap_caps_calloc");
 
-    ESP_LOGI("LCD----------", "Pre fill");
-
-    //std::fill(s.begin(), s.end(), 0x002E);
-    //ESP_LOGI(TAG, "fill %d %d %x", s.size(), s.size_bytes(), s[0]);
-
-    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, LCD_H_RES, LCD_V_RES, buffer));
-    free(buffer);
-
+    //// Очистка экрана (черный фон)
+    // uint16_t *buffer = (uint16_t *)heap_caps_calloc(LVGL_LCD_BUF_SIZE, sizeof(uint16_t), MALLOC_CAP_DMA);
+    // std::span<uint16_t> s(buffer, LVGL_LCD_BUF_SIZE);
+    //
+    // ESP_LOGI("LCD----------", "Pre fill");
+    // ESP_ERROR_CHECK_WITHOUT_ABORT(esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, LCD_H_RES, LCD_V_RES, buffer));
+    // free(buffer);
     // Рисуем линию (красная линия от (10,10) до (100,100))
-    draw_line(40, 40, 150, 150, 0xF800); // 0xF800 - красный цвет в формате RGB565
-
-    ESP_LOGI(TAG, "Line drawn successfully");
+    // draw_line(40, 40, 150, 150, 0xF800); // 0xF800 - красный цвет в формате RGB565
 
     lv_init();
 
@@ -226,32 +305,32 @@ void lcd_main(void)
 #endif
 
     disp = lv_display_create(LCD_H_RES, LCD_V_RES);
+    // lv_display_set_color_format(disp, LV_COLOR_FORMAT_b);
 
     lv_display_set_flush_cb(disp, my_disp_flush);
 
     draw_buf1 = (uint32_t *)heap_caps_calloc(DRAW_BUF_SIZE, sizeof(uint8_t), MALLOC_CAP_DMA);
     draw_buf2 = (uint32_t *)heap_caps_calloc(DRAW_BUF_SIZE, sizeof(uint8_t), MALLOC_CAP_DMA);
 
-    lv_display_set_buffers(disp, draw_buf1, draw_buf2,DRAW_BUF_SIZE /*sizeof(draw_buf)*/, LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_display_set_buffers(disp, draw_buf1, draw_buf2, DRAW_BUF_SIZE /*sizeof(draw_buf)*/, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
-
-
+    lv_display_set_default(disp);
+    ui_init();
 
     lv_obj_t *label = lv_label_create(lv_screen_active());
-    
+
     static lv_style_t style;
     lv_style_init(&style);
-    //lv_style_set_text_font(&style, &lv_font_montserrat_24);
+    // lv_style_set_text_font(&style, &lv_font_montserrat_24);
     lv_style_set_text_font(&style, &lv_font_unscii_16);
     lv_obj_add_style(label, &style, 0);
-    
+
     lv_label_set_text(label, "Hello KOE, I'm LVGL!");
 
     lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
 
     xTaskCreate(lv_task, "LVGL", 4096, NULL, 5, NULL);
-
-    // lv_demo_transform();
+    init_lvgl_timer();
 
     // lv_disp_buf = (lv_color_t *)heap_caps_malloc(LVGL_LCD_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
     //
