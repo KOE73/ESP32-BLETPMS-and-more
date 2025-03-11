@@ -234,8 +234,17 @@ void lcd_main(void)
 
     lv_display_set_buffers(disp, draw_buf1, draw_buf2,DRAW_BUF_SIZE /*sizeof(draw_buf)*/, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
-    lv_obj_t *label = lv_label_create(lv_screen_active());
 
+
+
+    lv_obj_t *label = lv_label_create(lv_screen_active());
+    
+    static lv_style_t style;
+    lv_style_init(&style);
+    //lv_style_set_text_font(&style, &lv_font_montserrat_24);
+    lv_style_set_text_font(&style, &lv_font_unscii_16);
+    lv_obj_add_style(label, &style, 0);
+    
     lv_label_set_text(label, "Hello KOE, I'm LVGL!");
 
     lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
