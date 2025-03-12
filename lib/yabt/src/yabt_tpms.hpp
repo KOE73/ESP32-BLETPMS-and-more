@@ -39,6 +39,9 @@ namespace yabt
 
         float temperatureC;
         float temperatureF;
-    };
+
+        // TODO
+        bool warning;
+    };   
 
 } // namespace yabt
