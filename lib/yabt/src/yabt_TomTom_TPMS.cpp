@@ -57,7 +57,7 @@ namespace yabt
     16BitServiceUUIDs ESP_BLE_AD_TYPE_16SRV_CMPL = 0x03   =>  0xFBB0
     */
 
-    bool BtDeviceRecognizerTomTomTPMS::GapHandler(const BleGapExtAdvReport &report)
+    bool BtDeviceRecognizerTomTomTPMS::CanHandle(const BleGapExtAdvReport &report)
     {
         auto oRaw = report.getManufacturerData();
         if (!oRaw.has_value())
@@ -68,26 +68,28 @@ namespace yabt
         if (raw.size() != 18)
             return false;
 
+        // Manufacturer TomTom
         if (raw[0] != 0x00 || raw[1] != 0x01)
             return false;
 
+        // Addres magic part. Maybe compare with the address?
         if (raw[3] != 0xEA || raw[4] != 0xCA)
             return false;
 
         return true;
     }
 
-    TPMSData BtDeviceRecognizerTomTomTPMS::parseTPMSData(const BleGapExtAdvReport &report)
+    void BtDeviceRecognizerTomTomTPMS::parseTPMSData(const BleGapExtAdvReport &report, TPMSData &data)
     {
         auto rawData = report.getManufacturerData().value();
-        TPMSData data;
+
         strncpy(data.id, report.getAddr().toString().c_str(), TPMSDATA_ID_LENGTH);
 
         if (rawData.size() != 18)
         {
-            return data; // throw std::invalid_argument("Invalid data size");
+            return;
         }
-        
+
         strncpy(data.manufacturerName, "TomTom", TPMSDATA_MANUFACTERENAME_LENGTH);
 
         data.sensorNumber = rawData[2] - 0x80;
@@ -111,40 +113,46 @@ namespace yabt
         data.temperatureRaw = tireTemperature;
         data.temperatureC = tireTemperature / 100.0;
         data.temperatureF = (data.temperatureC * CELSIUS_TO_FAHRENHEIT_FACTOR) + FAHRENHEIT_OFFSET;
+    }
 
-        return data;
+    void BtDeviceRecognizerTomTomTPMSWithAddress::parseTPMSData(const BleGapExtAdvReport &report, TPMSData &data)
+    {
+        BtDeviceRecognizerTomTomTPMS::parseTPMSData(report, data);
+        strncpy(data.id, "First 1", TPMSDATA_ID_LENGTH);
     }
 
     void BtDeviceRecognizerTomTomTPMS::Log(const BleGapExtAdvReport &report)
     {
         ESP_LOGI(TAG_BTController, " **************************** Device recognized by: %s", getName());
 
-        auto s = parseTPMSData(report);
+        TPMSData tpmsData;
+        parseTPMSData(report, tpmsData);
 
-        ESP_LOGI(TAG_BTController, "Sensor Number: 0x%02X", s.sensorNumber);
-        ESP_LOGI(TAG_BTController, "Sensor Address: 0x%06" PRIX32, s.sensorAddress);
-        ESP_LOGI(TAG_BTController, "Tire Pressure: 0x%08" PRIX32, s.pressureRaw);
-        ESP_LOGI(TAG_BTController, "Tire Temperature: 0x%08" PRIX32, s.temperatureRaw);
-        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f kPa", s.pressure_kPa);
-        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f mbar", s.pressure_mbar);
-        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f Psi", s.pressure_Psi);
-        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f Bar", s.pressure_Bar);
-        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f KgCm2", s.pressure_KgCm2);
-        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f Atm", s.pressure_Atm);
+        ESP_LOGI(TAG_BTController, "Sensor Number: 0x%02X", tpmsData.sensorNumber);
+        ESP_LOGI(TAG_BTController, "Sensor Address: 0x%06" PRIX32, tpmsData.sensorAddress);
+        ESP_LOGI(TAG_BTController, "Tire Pressure: 0x%08" PRIX32, tpmsData.pressureRaw);
+        ESP_LOGI(TAG_BTController, "Tire Temperature: 0x%08" PRIX32, tpmsData.temperatureRaw);
+        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f kPa", tpmsData.pressure_kPa);
+        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f mbar", tpmsData.pressure_mbar);
+        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f Psi", tpmsData.pressure_Psi);
+        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f Bar", tpmsData.pressure_Bar);
+        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f KgCm2", tpmsData.pressure_KgCm2);
+        ESP_LOGI(TAG_BTController, "Tire Pressure: %.5f Atm", tpmsData.pressure_Atm);
 
-        ESP_LOGI(TAG_BTController, "Tire Temperature: %.5f °C", s.temperatureC);
-        ESP_LOGI(TAG_BTController, "Tire Temperature: %.5f °F", s.temperatureF);
+        ESP_LOGI(TAG_BTController, "Tire Temperature: %.5f °C", tpmsData.temperatureC);
+        ESP_LOGI(TAG_BTController, "Tire Temperature: %.5f °F", tpmsData.temperatureF);
 
-        ESP_LOGI(TAG_BTController, "Battery Percentage: 0x%02X %%", s.batteryPercentage);
-        ESP_LOGI(TAG_BTController, "Battery Percentage: %d %%", s.batteryPercentage);
-        ESP_LOGI(TAG_BTController, "Alarm Flag: 0x%02X", s.alarmFlag);
+        ESP_LOGI(TAG_BTController, "Battery Percentage: 0x%02X %%", tpmsData.batteryPercentage);
+        ESP_LOGI(TAG_BTController, "Battery Percentage: %d %%", tpmsData.batteryPercentage);
+        ESP_LOGI(TAG_BTController, "Alarm Flag: 0x%02X", tpmsData.alarmFlag);
     }
 
     void BtDeviceRecognizerTomTomTPMS::SendEvent(esp_event_loop_handle_t yabt_loop, const BleGapExtAdvReport &report)
     {
         // ESP_LOGI("TAG_BTController", "PreSend YABT_EVENT_TPMS");
 
-        auto tpmsData = parseTPMSData(report);
+        TPMSData tpmsData;
+        parseTPMSData(report, tpmsData);
 
         // Отправка
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(

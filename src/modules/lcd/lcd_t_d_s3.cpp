@@ -315,6 +315,7 @@ void lcd_main(void)
     lv_display_set_buffers(disp, draw_buf1, draw_buf2, DRAW_BUF_SIZE /*sizeof(draw_buf)*/, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
     lv_display_set_default(disp);
+    
     ui_init();
 
     lv_obj_t *label = lv_label_create(lv_screen_active());

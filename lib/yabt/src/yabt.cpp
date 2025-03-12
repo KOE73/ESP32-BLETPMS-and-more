@@ -53,9 +53,9 @@ namespace yabt
         // 1. обработка по известным адресам
 
         // 2. Перебираем все распознаватели
-        for (auto &recognizer : recognizers_)
+        for (auto &recognizer : gap_recognizers_)
         {
-            if (recognizer->GapHandler(report))
+            if (recognizer->CanHandle(report))
             {
                 recognizer->Log(report);
                 recognizer->SendEvent(event_loop_, report);

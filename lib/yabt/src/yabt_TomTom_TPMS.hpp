@@ -26,7 +26,7 @@
 
 namespace yabt
 {
-    
+
     class BtDeviceRecognizerTomTomTPMS : public BtDeviceRecognizerBase
     {
     public:
@@ -35,17 +35,30 @@ namespace yabt
             return "BtDeviceRecognizerTomTomTPMS";
         }
 
-        bool GapHandler(const BleGapExtAdvReport &report) override;
+        bool CanHandle(const BleGapExtAdvReport &report) override;
+        
         void Log(const BleGapExtAdvReport &report) override;
-         void SendEvent(esp_event_loop_handle_t yabt_loop,const BleGapExtAdvReport &report)override ;
 
-    private:
-        BtDeviceRecognizerTomTomTPMS() = default; // Конструктор теперь пустой
+        void SendEvent(esp_event_loop_handle_t yabt_loop, const BleGapExtAdvReport &report) override;
+
+    protected:
+        BtDeviceRecognizerTomTomTPMS() = default;
+        BtDeviceRecognizerTomTomTPMS(SkipRegister skip):BtDeviceRecognizerBase(skip) {}
 
         static BtDeviceRecognizerTomTomTPMS instance; // Статический экземпляр
 
+       virtual void parseTPMSData(const BleGapExtAdvReport &report, TPMSData &data);
+    };
+
+    class BtDeviceRecognizerTomTomTPMSWithAddress : public BtDeviceRecognizerTomTomTPMS, public BtKnownDevice
+    {
     public:
-        TPMSData parseTPMSData(const BleGapExtAdvReport &report);
+        BtDeviceRecognizerTomTomTPMSWithAddress(esp_bd_addr_t *esp_addr) :BtDeviceRecognizerTomTomTPMS(SkipRegister{}), BtKnownDevice(esp_addr)
+        {
+        }
+
+        void parseTPMSData(const BleGapExtAdvReport &report, TPMSData &data)override;
+
     };
 
 } // namespace yabt

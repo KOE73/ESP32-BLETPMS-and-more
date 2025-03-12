@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "yabt.hpp"
 
 namespace yabt
 {
@@ -16,13 +17,11 @@ namespace yabt
 
     constexpr float CELSIUS_TO_FAHRENHEIT_FACTOR = 9.0f / 5.0f; // 1.8
     constexpr float FAHRENHEIT_OFFSET = 32.0f;
-    
-#define TPMSDATA_ID_LENGTH 25
+
 #define TPMSDATA_MANUFACTERENAME_LENGTH 50
 
-    struct TPMSData
+    struct TPMSData : public DeviceData
     {
-        char id[TPMSDATA_ID_LENGTH];
         char manufacturerName[TPMSDATA_MANUFACTERENAME_LENGTH];
         uint8_t sensorNumber;
         uint32_t sensorAddress;
@@ -40,6 +39,6 @@ namespace yabt
 
         float temperatureC;
         float temperatureF;
-    };   
+    };
 
 } // namespace yabt

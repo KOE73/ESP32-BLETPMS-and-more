@@ -35,7 +35,7 @@ namespace yabt
             return "BtDeviceRecognizerTest";
         }
 
-        bool GapHandler(const BleGapExtAdvReport &report) override;
+        bool CanHandle(const BleGapExtAdvReport &report) override;
         void Log(const BleGapExtAdvReport &report) override;
          void SendEvent(esp_event_loop_handle_t yabt_loop,const BleGapExtAdvReport &report)override ;
 

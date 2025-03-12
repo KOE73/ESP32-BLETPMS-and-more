@@ -29,7 +29,7 @@ namespace yabt
     // COOLSPO Address
     static esp_bd_addr_t target_addr = {0xc3, 0x2f, 0x4c, 0xf4, 0xfe, 0x52};
 
-    bool BtDeviceRecognizerTest::GapHandler(const BleGapExtAdvReport &report)
+    bool BtDeviceRecognizerTest::CanHandle(const BleGapExtAdvReport &report)
     {
         return report.getAddr() == target_addr;
     }
