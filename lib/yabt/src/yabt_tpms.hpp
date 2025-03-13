@@ -42,6 +42,9 @@ namespace yabt
         float temperatureC;
         float temperatureF;
 
+        // TODO
+        bool warning;
+
         TPMSData() : DeviceData(DEFAULT_TYPE) {}
     };
 
