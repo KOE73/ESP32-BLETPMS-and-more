@@ -8,12 +8,12 @@ namespace lcd
     /// @brief Constructor initializes the LVGL handler and creates UI labels.
     /// @param parentContainer The parent LVGL container where elements will be placed.
     LVGLHandler::LVGLHandler(lv_obj_t *parentContainer) : container(parentContainer)
-    {  
+    {
         ESP_LOGI("LCD----------", "! LVGLHandler::LVGLHandler");
-      
+
         createLabels();
         ESP_LOGI("LCD----------", "! LVGLHandler::LVGLHandler 2");
-      
+
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_handler_register_with(yabt::BTController::getInstance().getEventLoop(), YABT_EVENT, ESP_EVENT_ANY_ID, &LVGLHandler::eventHandler, this));
         ESP_LOGI("LCD----------", "! LVGLHandler::LVGLHandler 3");
         // esp_event_handler_register_with(GenericEventLoop::getInstance().getEventLoop(), GENERIC_EVENT, ESP_EVENT_ANY_ID, &LVGLHandler::genericEventHandler, this);
@@ -24,23 +24,59 @@ namespace lcd
     {
         ESP_LOGI("LCD----------", "! Make label");
         ui_Panel = lv_obj_create(container);
-        lv_obj_set_width(ui_Panel, 50);
-        lv_obj_set_height(ui_Panel, 60);
+        lv_obj_set_width(ui_Panel, 100);
+        lv_obj_set_height(ui_Panel, 80);
 
         lv_style_init(&style);
 
+        lv_obj_set_style_pad_all(ui_Panel, 0, LV_PART_MAIN);
+
+        lv_obj_remove_flag(ui_Panel, LV_OBJ_FLAG_SCROLLABLE); /// Flags
+        lv_obj_set_style_radius(ui_Panel, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_color(ui_Panel, lv_color_hex(0x001020), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_opa(ui_Panel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_border_color(ui_Panel, lv_color_hex(0x002030), LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_border_opa(ui_Panel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_border_width(ui_Panel, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_shadow_color(ui_Panel, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_shadow_opa(ui_Panel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_shadow_width(ui_Panel, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_shadow_spread(ui_Panel, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_shadow_offset_x(ui_Panel, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_shadow_offset_y(ui_Panel, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_text_color(ui_Panel, lv_color_hex(0x1ECDCF), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_text_opa(ui_Panel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
         pressureLabel = lv_label_create(ui_Panel);
-        lv_label_set_text(pressureLabel, "Pressure: -- Psi");
-        lv_obj_align(pressureLabel, LV_ALIGN_TOP_MID, 0, 10);
-        lv_obj_set_size(pressureLabel, 50, 30);
-        lv_style_set_text_font(&style, &lv_font_montserrat_24);
+        lv_label_set_text(pressureLabel, "0.0");
+        lv_obj_align(pressureLabel, LV_ALIGN_TOP_MID, 0, 0);
+        lv_obj_set_size(pressureLabel, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        //lv_style_set_text_font(&style, &lv_font_montserrat_24);
+
+
+        // lv_obj_set_width(pressureLabel, LV_SIZE_CONTENT);  /// 1
+        // lv_obj_set_height(pressureLabel, LV_SIZE_CONTENT); /// 1
+        // lv_obj_set_x(pressureLabel, -174);
+        // lv_obj_set_y(pressureLabel, -35);
+        //lv_obj_set_align(pressureLabel, LV_ALIGN_CENTER);
+        //lv_label_set_text(pressureLabel, "text");
+        lv_obj_set_style_text_color(pressureLabel, lv_color_hex(0xFF4040), LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_text_opa(pressureLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_text_font(pressureLabel, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_outline_color(pressureLabel, lv_color_hex(0xE3D5D5), LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_outline_opa(pressureLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_outline_width(pressureLabel, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+        //lv_obj_set_style_outline_pad(pressureLabel, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
 
         temperatureLabel = lv_label_create(ui_Panel);
-        lv_label_set_text(temperatureLabel, "Temperature: -- °C");
-        lv_obj_align(temperatureLabel, LV_ALIGN_BOTTOM_MID, 0, -10);
-        lv_obj_set_size(temperatureLabel, 50, 30);
-        lv_style_set_text_font(&style, &lv_font_montserrat_14);
-
+        lv_label_set_text(temperatureLabel, "-- °C");
+        lv_obj_align(temperatureLabel, LV_ALIGN_BOTTOM_MID, 0, -5);
+        lv_obj_set_size(temperatureLabel, LV_SIZE_CONTENT, 20);
+        lv_obj_set_style_text_color(temperatureLabel, lv_color_hex(0xFF4040), LV_PART_MAIN | LV_STATE_DEFAULT);
+        
+        lv_obj_set_style_text_font(temperatureLabel, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
+       
+        lv_obj_invalidate( container);
         ESP_LOGI("LCD----------", "! Make label end");
     }
 
@@ -63,8 +99,13 @@ namespace lcd
                   << data.temperatureC << " °C" << std::endl;
         ESP_LOGI("LCD----------", "! Changing label");
 
-        lv_label_set_text_fmt(pressureLabel, "Pressure: %.2f Psi", data.pressure_Psi);
-        lv_label_set_text_fmt(temperatureLabel, "Temperature: %.2f °C", data.temperatureC);
+        std::ostringstream stream;
+        stream << std::fixed << std::setprecision(1) << data.pressure_Psi;
+        lv_label_set_text(pressureLabel, stream.str().c_str());
+        
+        stream.str("");
+        stream << std::fixed << std::setprecision(1) << data.temperatureC << " °C";
+        lv_label_set_text(temperatureLabel, stream.str().c_str());
 
         lv_obj_invalidate(ui_Panel);
         lv_obj_invalidate(pressureLabel);

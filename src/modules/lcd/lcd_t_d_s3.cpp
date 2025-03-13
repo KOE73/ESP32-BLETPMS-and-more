@@ -222,7 +222,7 @@ void ui_Screen2_screen_init(void)
     lv_obj_remove_flag(ui_Screen2, LV_OBJ_FLAG_SCROLLABLE); /// Flags
     lv_obj_set_flex_flow(ui_Screen2, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(ui_Screen2, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_set_style_bg_color(ui_Screen2, lv_color_hex(0xD60909), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Screen2, lv_color_hex(0x001020), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_Screen2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_all(ui_Screen2, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
     //lv_obj_set_style_pad_row(ui_Screen2, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -343,7 +343,7 @@ void lcd_main(void)
 
     ESP_LOGI("LCD----------", "222");
 
-    Whell1 = new lcd::LVGLHandler(lv_screen_active());
+    Whell1 = new lcd::LVGLHandler(ui_Screen2);
 
     ESP_LOGI("LCD----------", "333");
 

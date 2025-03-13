@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <random>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -43,6 +44,15 @@ void print_partition_table()
         printf("Offset: 0x%08lX, Size: 0x%08lX\n", partition->address, partition->size);
         iter = esp_partition_next(iter);
     }
+}
+
+float getRandomValue(float min = 0.1f, float max = 9.0f)
+{
+    static std::random_device rd;                          // Источник энтропии
+    static std::mt19937 gen(rd());                        // Генератор случайных чисел
+    std::uniform_real_distribution<float> dist(min, max); // Равномерное распределение
+
+    return dist(gen);
 }
 
 extern void lcd_main(void);
@@ -97,8 +107,8 @@ extern "C" void app_main()
             portMAX_DELAY);
 
         yabt::TPMSData tpms1;
-        tpms1.pressure_Psi = 1.1;
-        tpms1.temperatureC = 26.1;
+        tpms1.pressure_Psi = getRandomValue();
+        tpms1.temperatureC = getRandomValue()*5.0;
         esp_event_post_to(yabt::BTController::getInstance().getEventLoop(), YABT_EVENT, YABT_EVENT_TPMS, &tpms1, sizeof(tpms1), portMAX_DELAY);
 
         vTaskDelay(pdMS_TO_TICKS(5000));
