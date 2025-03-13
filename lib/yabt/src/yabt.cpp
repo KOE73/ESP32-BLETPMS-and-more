@@ -26,15 +26,17 @@
 
 #define TAG_BTController "BTController"
 
+//const char *YABT_EVENT = "YABT_EVENT";
+ESP_EVENT_DEFINE_BASE(YABT_EVENT);
 namespace yabt
 {
+
     esp_event_loop_handle_t BTController::event_loop_;
 
     BTController::BTController()
     {
         // Используйте uxTaskGetStackHighWaterMark для мониторинга использования стека и корректировки его размера, если это необходимо.
 
-        
         esp_event_loop_args_t loop_args = {
             .queue_size = 10,         // Размер очереди событий
             .task_name = "yabt_loop", // Имя задачи

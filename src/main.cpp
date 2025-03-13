@@ -25,8 +25,11 @@
 
 #include "ble/esp_gap_ble_api_to_string.h"
 
+#include "yabt.hpp"
+#include "yabt_tpms.hpp"
+
 static const char *TAG_MAIN = "MAIN";
- 
+
 void print_partition_table()
 {
     const esp_partition_t *partition = NULL;
@@ -47,7 +50,7 @@ extern void lcd_main(void);
 extern "C" void app_main()
 {
 
-     vTaskDelay(pdMS_TO_TICKS(4000)); // Задержка на 1000 миллисекунд
+    vTaskDelay(pdMS_TO_TICKS(4000)); // Задержка на 1000 миллисекунд
     ESP_LOGI(TAG_MAIN, "Программа запущена V3 !");
 
     for (int i = 0; i < 10; i++)
@@ -69,7 +72,6 @@ extern "C" void app_main()
         return;
     }
 
-
     init_main();
 
     vTaskDelay(200 / portTICK_PERIOD_MS);
@@ -77,10 +79,10 @@ extern "C" void app_main()
     DynamicJsonDocument json(100);
     std::string output;
 
-    for (int i= 0; i<500;i++)
+    for (int i = 0; i < 500; i++)
     {
-        //printf("\033[03;38;05;222mMain loop running.\033[0m\n");
-        //ESP_LOGI("XX","XX");
+        // printf("\033[03;38;05;222mMain loop running.\033[0m\n");
+        // ESP_LOGI("XX","XX");
 
         json["msgType"] = "mainTick";
         json["id"] = i;
@@ -90,10 +92,15 @@ extern "C" void app_main()
         esp_err_t ret = esp_event_post(
             SYS_INNER_EVENT,
             SYS_INNER_EVENT_WS_SEND_JSON,
-            output.c_str(),       // Указатель на данные строки
-            output.size() + 1,    // Размер с учётом '\0'
-            portMAX_DELAY
-        );
+            output.c_str(),    // Указатель на данные строки
+            output.size() + 1, // Размер с учётом '\0'
+            portMAX_DELAY);
+
+        yabt::TPMSData tpms1;
+        tpms1.pressure_Psi = 1.1;
+        tpms1.temperatureC = 26.1;
+        esp_event_post_to(yabt::BTController::getInstance().getEventLoop(), YABT_EVENT, YABT_EVENT_TPMS, &tpms1, sizeof(tpms1), portMAX_DELAY);
+
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
     esp_restart();

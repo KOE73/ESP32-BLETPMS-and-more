@@ -18,6 +18,8 @@
 #include "lvgl.h"
 #include "UI/ui.h"
 
+#include "TPMS/lvgl_tpms.hpp"
+
 #define LCD_H_RES 320   // Горизонтальное разрешение
 #define LCD_V_RES 170   // Вертикальное разрешение
 #define LCD_BUS_WIDTH 8 // Ширина шины I8080
@@ -185,19 +187,19 @@ void my_disp_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
     lv_display_flush_ready(disp);
 }
 
-
 // Функция таймера для LVGL (обновляет LVGL каждые 1 мс)
-static void lv_tick_task(void *arg) {
-    lv_tick_inc(1);  // Увеличиваем LVGL тик на 1 мс
+static void lv_tick_task(void *arg)
+{
+    lv_tick_inc(1); // Увеличиваем LVGL тик на 1 мс
 }
 
 // Инициализация таймера
-void init_lvgl_timer(void) {
+void init_lvgl_timer(void)
+{
     static esp_timer_handle_t lvgl_tick_timer = NULL;
     esp_timer_create_args_t timer_args = {
         .callback = &lv_tick_task,
-        .name = "lvgl_tick"
-    };
+        .name = "lvgl_tick"};
     esp_timer_create(&timer_args, &lvgl_tick_timer);
     esp_timer_start_periodic(lvgl_tick_timer, 1000); // 1 мс
 }
@@ -209,6 +211,22 @@ void lv_task(void *pvParameter)
         lv_timer_handler();            // Обработка LVGL
         vTaskDelay(pdMS_TO_TICKS(10)); // Задержка 10 мс (оптимально)
     }
+}
+
+lcd::LVGLHandler *Whell1;
+
+lv_obj_t *ui_Screen2;
+void ui_Screen2_screen_init(void)
+{
+    ui_Screen2 = lv_obj_create(NULL);
+    lv_obj_remove_flag(ui_Screen2, LV_OBJ_FLAG_SCROLLABLE); /// Flags
+    lv_obj_set_flex_flow(ui_Screen2, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_flex_align(ui_Screen2, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_bg_color(ui_Screen2, lv_color_hex(0xD60909), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Screen2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_all(ui_Screen2, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    //lv_obj_set_style_pad_row(ui_Screen2, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    //lv_obj_set_style_pad_column(ui_Screen2, 15, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
 void lcd_main(void)
@@ -315,20 +333,32 @@ void lcd_main(void)
     lv_display_set_buffers(disp, draw_buf1, draw_buf2, DRAW_BUF_SIZE /*sizeof(draw_buf)*/, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
     lv_display_set_default(disp);
-    
-    ui_init();
 
-    lv_obj_t *label = lv_label_create(lv_screen_active());
+    // ui_init();
+    // lv_obj_t *label = lv_label_create(lv_screen_active());
+
+    ESP_LOGI("LCD----------", "1");
+
+    ui_Screen2_screen_init();
+
+    ESP_LOGI("LCD----------", "222");
+
+    Whell1 = new lcd::LVGLHandler(lv_screen_active());
+
+    ESP_LOGI("LCD----------", "333");
+
+    lv_screen_load(ui_Screen2);
+
+    ESP_LOGI("LCD----------", "4444");
+
 
     static lv_style_t style;
     lv_style_init(&style);
     // lv_style_set_text_font(&style, &lv_font_montserrat_24);
     lv_style_set_text_font(&style, &lv_font_unscii_16);
-    lv_obj_add_style(label, &style, 0);
-
-    lv_label_set_text(label, "Hello KOE, I'm LVGL!");
-
-    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+    // lv_obj_add_style(label, &style, 0);
+    // lv_label_set_text(label, "Hello KOE, I'm LVGL!");
+    // lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
 
     xTaskCreate(lv_task, "LVGL", 4096, NULL, 5, NULL);
     init_lvgl_timer();
@@ -340,23 +370,3 @@ void lcd_main(void)
 
     ESP_LOGI("LCD----------", "+");
 }
-
-/*
-
-
-static void lvgl_timer_callback(void *arg) {
-    lv_timer_handler();
-}
-
-void init_lvgl_timer() {
-    const esp_timer_create_args_t timer_args = {
-        .callback = &lvgl_timer_callback,
-        .name = "lvgl_timer"
-    };
-
-    esp_timer_handle_t lvgl_timer;
-    esp_timer_create(&timer_args, &lvgl_timer);
-    esp_timer_start_periodic(lvgl_timer, 10 * 1000);  // 10 мс (в микросекундах)
-}
-
-*/

@@ -17,7 +17,6 @@
 
 #include "bluetooth-SIG/assigned_numbers/company_identifiers/company_identifiers.hpp"
 
-#include "yabt_utils.hpp"
 #include "yabt.hpp"
 
 // Теги для логирования

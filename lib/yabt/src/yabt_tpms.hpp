@@ -22,6 +22,8 @@ namespace yabt
 
     struct TPMSData : public DeviceData
     {
+        static constexpr const char *DEFAULT_TYPE = "TPMS";
+
         char manufacturerName[TPMSDATA_MANUFACTERENAME_LENGTH];
         uint8_t sensorNumber;
         uint32_t sensorAddress;
@@ -39,6 +41,8 @@ namespace yabt
 
         float temperatureC;
         float temperatureF;
+
+        TPMSData() : DeviceData(DEFAULT_TYPE) {}
     };
 
 } // namespace yabt

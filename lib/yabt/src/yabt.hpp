@@ -16,16 +16,16 @@
 
 // #include "esp_system.h"
 #include "esp_log.h"
-// #include "esp_event.h"
+#include "esp_event.h"
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include "esp_gap_ble_api.h"
 // #include "esp_event_loop.h"
 
 #include "yabt_utils.hpp"
-#include "yabt_events.hpp"
 
-#define TAG_BTController "BTController"
+#define DEVICEDATA_ID_LENGTH 16
+#define DEVICEDATA_TYPE_LENGTH 16
 
 // Для фабрики. Пока думаю заче
 // #define REGISTER_CLASS(Derived)
@@ -39,9 +39,20 @@
 //             }
 //         } reg##Derived;
 //
+#pragma region Events
 
+ESP_EVENT_DECLARE_BASE(YABT_EVENT);
+
+typedef enum yabt_events
+{
+    YABT_EVENT_TPMS = 2, // TPMSData
+    YABT_EVENT_TOMTOM_TPMS = YABT_EVENT_TPMS + 1,
+} yabt_events_t;
+
+#pragma endregion
 namespace yabt
 {
+
     class GapHandlerBase;
 
     // // Фабрика. Пока думаю зачем
@@ -190,9 +201,6 @@ namespace yabt
         // }
     };
 
-#define DEVICEDATA_ID_LENGTH 16
-#define DEVICEDATA_TYPE_LENGTH 16
-
     /// @brief  Base data structure for devices.
     struct DeviceData
     {
@@ -205,6 +213,12 @@ namespace yabt
         /// @brief  String representation of a known device.
         ///         Empty for unknown devices.
         char id[DEVICEDATA_ID_LENGTH];
+
+        DeviceData(const char *typeInput)
+        {
+            strncpy(type, typeInput, DEVICEDATA_TYPE_LENGTH - 1);
+            type[DEVICEDATA_TYPE_LENGTH - 1] = '\0';
+        };
     };
 
 } // namespace yabt

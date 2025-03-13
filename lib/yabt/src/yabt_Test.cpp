@@ -18,7 +18,6 @@
 #include "esp_bt_main.h"
 #include "esp_gap_ble_api.h"
 
-#include "yabt_events.hpp"
 #include "yabt_Test.hpp"
 
 namespace yabt
@@ -36,7 +35,7 @@ namespace yabt
 
     void BtDeviceRecognizerTest::Log(const BleGapExtAdvReport &report)
     {
-        ESP_LOGI(TAG_BTController, " /////////////// Test : %s", getName());
+        ESP_LOGI("BtDeviceRecognizerTest", " /////////////// Test : %s", getName());
     }
 
     void BtDeviceRecognizerTest::SendEvent(esp_event_loop_handle_t yabt_loop, const BleGapExtAdvReport &report)

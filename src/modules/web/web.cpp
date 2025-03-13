@@ -13,10 +13,8 @@
 
 #include "ArduinoJson.h"
 #include "yabt.hpp"
-#include "yabt_events.hpp"
 #include "yabt_tpms.hpp"
 #include "modules/diagnostic/diagnostic.hpp"
-
 
 // #include "WebServer.hpp"
 
@@ -104,7 +102,7 @@ void event_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id,
 
 void yabt_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    if (event_id == yabt::yabt_events_t::YABT_EVENT_TPMS)
+    if (event_id == YABT_EVENT_TPMS)
     {
         ESP_LOGI("EV_XxX", "Receive YABT_EVENT_TPMS");
 
@@ -162,7 +160,7 @@ esp_err_t start_web_server(void)
 
     esp_event_handler_register(SYS_INNER_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL);
     esp_event_handler_register(ESP_EVENT_ANY_BASE, ESP_EVENT_ANY_ID, event_handler_any, NULL);
-    esp_event_handler_register_with(yabt::BTController::getInstance().getEventLoop(), yabt::YABT_EVENT, ESP_EVENT_ANY_ID, yabt_handler_any, NULL);
+    esp_event_handler_register_with(yabt::BTController::getInstance().getEventLoop(), YABT_EVENT, ESP_EVENT_ANY_ID, yabt_handler_any, NULL);
 
     xTaskCreate(
         [](void *param)
