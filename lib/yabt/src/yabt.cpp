@@ -26,7 +26,7 @@
 
 #define TAG_BTController "BTController"
 
-//const char *YABT_EVENT = "YABT_EVENT";
+// const char *YABT_EVENT = "YABT_EVENT";
 ESP_EVENT_DEFINE_BASE(YABT_EVENT);
 namespace yabt
 {
@@ -53,16 +53,31 @@ namespace yabt
     {
 
         // 1. обработка по известным адресам
-
-        // 2. Перебираем все распознаватели
-        for (auto &recognizer : gap_recognizers_)
+        auto known_handler_iter = known_addreses_gap_Handlers_.find(report.getAddr());
+        if (known_handler_iter != known_addreses_gap_Handlers_.end())
         {
-            if (recognizer->CanHandle(report))
+            BtDeviceRecognizerBase *known_device_handler = known_handler_iter->second;
+    
+            if (known_device_handler->CanHandle(report))
             {
-                recognizer->Log(report);
-                recognizer->SendEvent(event_loop_, report);
+                known_device_handler->Log(report);
+                known_device_handler->SendEvent(event_loop_, report);
+                return true;
+            }
+        }
+        
+        // 2. Перебираем все распознаватели
+        if (search_mode_)
+        {
+            for (auto &recognizer : gap_recognizers_)
+            {
+                if (recognizer->CanHandle(report))
+                {
+                    recognizer->Log(report);
+                    recognizer->SendEvent(event_loop_, report);
 
-                return true; // Завершаем обработку
+                    return true; // Завершаем обработку
+                }
             }
         }
 

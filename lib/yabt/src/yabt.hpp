@@ -88,11 +88,14 @@ namespace yabt
 
     class BtDeviceRecognizerBase;
 
+    /// @brief  Central class for processing and managing BT information.
+    ///         GAP and GATT client.
     class BTController
     {
     private:
         std::vector<BtDeviceRecognizerBase *> gap_recognizers_;
-        std::map<BtDeviceAddr, BtDeviceRecognizerBase *> known_addreses_gap_Handlers_;
+        std::map<BtDeviceAddr, BtDeviceRecognizerBase *, std::less<>> known_addreses_gap_Handlers_;
+        bool search_mode_ = true;
         static esp_event_loop_handle_t event_loop_;
 
     public:
@@ -115,9 +118,20 @@ namespace yabt
             gap_recognizers_.push_back(recognizer);
         }
 
+        /// @brief  GAP handler method.
+        ///         This method must be called when processing ESP_GAP_BLE_EXT_ADV_REPORT_EVT.
+        ///         If the address is known, the handler associated with this address is called.
+        ///         If the address is unknown and search mode is enabled, device type recognizers are invoked.
+        ///         Upon successful device identification, a device discovery event is dispatched.
+        ///         Example usage:
+        ///         case ESP_GAP_BLE_EXT_ADV_REPORT_EVT:
+        ///             const yabt::BleGapExtAdvReport Report(param->ext_adv_report.params);
+        ///             yabt::BTController::getInstance().GapHanler(Report);
         bool GapHanler(BleGapExtAdvReport report);
     };
 
+    /// @brief  Base class for device recognition.
+    ///         Derived classes process GAP reports via CanHandle.
     class BtDeviceRecognizerBase
     {
     public:
@@ -132,6 +146,7 @@ namespace yabt
         /// @return Returns true if the data is suitable.
         virtual bool CanHandle(const BleGapExtAdvReport &report) = 0;
 
+        /// @brief  Outputs device information using ESP_LOGI.
         virtual void Log(const BleGapExtAdvReport &report)
         {
             ESP_LOGI("BtDeviceRecognizerBase", "%s", getName());

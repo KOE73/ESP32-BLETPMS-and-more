@@ -44,10 +44,7 @@ namespace yabt
         return *this;
     }
 
-    BtDeviceAddr::BtDeviceAddr(const BtDeviceAddrSpan &span)
-    {
-        std::copy(span.data.begin(), span.data.end(), this->begin());
-    }
+    BtDeviceAddr::BtDeviceAddr(const BtDeviceAddrSpan &span) { std::copy(span.data.begin(), span.data.end(), this->begin()); }
 
     BtDeviceAddr &BtDeviceAddr::operator=(const BtDeviceAddrSpan &span)
     {
@@ -55,25 +52,14 @@ namespace yabt
         return *this;
     }
 
-    bool BtDeviceAddr::operator==(const esp_bd_addr_t &addr) const
-    {
-        return std::equal(this->begin(), this->end(), std::begin(addr));
-    }
+    bool BtDeviceAddr::operator==(const esp_bd_addr_t &addr) const { return std::equal(this->begin(), this->end(), std::begin(addr)); }
+    bool BtDeviceAddr::operator!=(const esp_bd_addr_t &addr) const { return !(*this == addr); }
 
-    bool BtDeviceAddr::operator!=(const esp_bd_addr_t &addr) const
-    {
-        return !(*this == addr);
-    }
+    bool BtDeviceAddr::operator==(const BtDeviceAddrSpan &span) const { return std::equal(this->begin(), this->end(), span.data.begin()); }
+    bool BtDeviceAddr::operator!=(const BtDeviceAddrSpan &span) const { return !(*this == span); }
 
-    bool BtDeviceAddr::operator==(const BtDeviceAddrSpan &span) const
-    {
-        return std::equal(this->begin(), this->end(), span.data.begin());
-    }
-
-    bool BtDeviceAddr::operator!=(const BtDeviceAddrSpan &span) const
-    {
-        return !(*this == span);
-    }
+    bool BtDeviceAddr::operator<(const BtDeviceAddr &other) const { return std::lexicographical_compare(this->begin(), this->end(), other.begin(), other.end()); }
+    bool BtDeviceAddr::operator<(const BtDeviceAddrSpan &span) const { return std::lexicographical_compare(this->begin(), this->end(), span.data.begin(), span.data.end()); }
 
     std::string BtDeviceAddr::toString() const
     {
@@ -91,25 +77,14 @@ namespace yabt
         return oss.str();
     }
 
-    bool BtDeviceAddrSpan::operator==(const esp_bd_addr_t &addr) const
-    {
-        return std::equal(data.begin(), data.end(), std::begin(addr));
-    }
+    bool BtDeviceAddrSpan::operator==(const esp_bd_addr_t &addr) const { return std::equal(data.begin(), data.end(), std::begin(addr)); }
+    bool BtDeviceAddrSpan::operator!=(const esp_bd_addr_t &addr) const { return !(*this == addr); }
 
-    bool BtDeviceAddrSpan::operator!=(const esp_bd_addr_t &addr) const
-    {
-        return !(*this == addr);
-    }
+    bool BtDeviceAddrSpan::operator==(const BtDeviceAddr &addr) const { return std::equal(data.begin(), data.end(), addr.begin()); }
+    bool BtDeviceAddrSpan::operator!=(const BtDeviceAddr &addr) const { return !(*this == addr); }
 
-    bool BtDeviceAddrSpan::operator==(const BtDeviceAddr &addr) const
-    {
-        return std::equal(data.begin(), data.end(), addr.begin());
-    }
-
-    bool BtDeviceAddrSpan::operator!=(const BtDeviceAddr &addr) const
-    {
-        return !(*this == addr);
-    }
+    bool BtDeviceAddrSpan::operator<(const BtDeviceAddrSpan &other) const { return std::lexicographical_compare(this->data.begin(), this->data.end(), other.data.begin(), other.data.end()); }
+    bool BtDeviceAddrSpan::operator<(const BtDeviceAddr &addr) const { return std::lexicographical_compare(this->data.begin(), this->data.end(), addr.begin(), addr.end()); }
 
     std::string BtDeviceAddrSpan::toString() const
     {
@@ -206,13 +181,14 @@ namespace yabt
     {
         std::vector<std::string> words = {"apple", "banana", "cherry", "lada"};
         auto joined = std::views::join_with(words, ", ");
-        //auto joined = std::views::join(words);
-    
+        // auto joined = std::views::join(words);
+
         std::ostringstream oss;
-        for (char c : joined) {
-            oss.put(c);  // Используем put() вместо += (эффективнее)
+        for (char c : joined)
+        {
+            oss.put(c); // Используем put() вместо += (эффективнее)
         }
-    
+
         std::string result = oss.str();
     }
 

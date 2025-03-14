@@ -46,6 +46,9 @@ namespace yabt
         bool operator==(const BtDeviceAddrSpan &span) const;
         bool operator!=(const BtDeviceAddrSpan &span) const;
 
+        bool operator<(const BtDeviceAddr &other) const;
+        bool operator<(const BtDeviceAddrSpan &span) const;
+
         std::string toString() const;
     };
 
@@ -61,6 +64,9 @@ namespace yabt
 
         bool operator==(const BtDeviceAddr &addr) const;
         bool operator!=(const BtDeviceAddr &addr) const;
+
+        bool operator<(const BtDeviceAddrSpan &other) const;
+        bool operator<(const BtDeviceAddr &addr) const;
 
         std::string toString() const;
     };
