@@ -79,5 +79,10 @@
     },
     "editor.minimap.scale": 2,
     "editor.minimap.showSlider": "always",
-    "editor.minimap.size": "fill"
+    "editor.minimap.size": "fill",
+    "workbench.activityBar.iconClickBehavior": "toggle",
+    "workbench.activityBar.location": "default",
+    "workbench.activityBar.orientation": "vertical",
+    "workbench.panel.showLabels": true,
+    "workbench.sideBar.location": "left"
 }
