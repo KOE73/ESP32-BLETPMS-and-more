@@ -1,6 +1,6 @@
 using Microsoft.Extensions.FileProviders;
 using System.Net.WebSockets;
-using System.Text;
+using MyWebServer.Generators;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,9 +18,9 @@ if(app.Environment.IsDevelopment())
 
 //app.UseHttpsRedirection();
 
-string basePath = Path.Combine(Directory.GetCurrentDirectory(), "../src/www");
+string basePath = Path.Combine(Directory.GetCurrentDirectory(), "../../src/www");
 
-// Настройка статических файлов
+// Setup static files
 app.UseFileServer(new FileServerOptions
 {
 	//FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory())),
@@ -92,6 +92,10 @@ app.MapGet("/weatherforecast", () =>
 app.UseWebSockets();
 
 Task.Run(async () => await KeyHandler.ListenForKeyPresses());
+
+
+Task.Run(() => DiagnosticDataGenerator.GenerateCPUTasksPeriodically());
+Task.Run(() => TPMSDataGenerator.GenerateTPMSDataPeriodically());
 
 app.Run();
 

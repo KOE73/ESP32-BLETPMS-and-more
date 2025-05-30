@@ -100,19 +100,23 @@ void event_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id,
     ESP_LOGI("EV_XxX", "%s : %li", event_base, event_id);
 }
 
+
+/// @brief  Converts BLE events to JSON and sends them to the web.
 void yabt_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     if (event_id == YABT_EVENT_TPMS)
     {
         ESP_LOGI("EV_XxX", "Receive YABT_EVENT_TPMS");
+        if(!ws_h.count())
+        return;
 
         yabt::TPMSData &data = *((yabt::TPMSData *)event_data);
         JsonDocument json;
-        // json.(128);
 
-        json["msgType"] = "yabt_tpms";
+        json["msgType"] = "tpms";
+        json["msgSource"] = "ble";
         json["id"] = data.id;
-        json["ManufacturerName"] = data.manufacturerName;
+        json["manufacturerName"] = data.manufacturerName;
         json["sensorNumber"] = data.sensorNumber;
         json["sensorAddress"] = data.sensorAddress;
         json["pressureRaw"] = data.pressureRaw;

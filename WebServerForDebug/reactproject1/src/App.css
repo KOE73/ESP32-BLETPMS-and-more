@@ -1,0 +1,137 @@
+body {
+  background-color: #f8f9fa;
+}
+
+div[id='root'] {
+    height: -webkit-fill-available;
+    height: 100vh;
+    max-height: 100vh;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+main{
+    height: -webkit-fill-available;
+    height: 100vh;
+    max-height: 100vh;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+
+.nav-link {
+  cursor: pointer;
+}
+
+.nav-link.active {
+  background-color: #007bff;
+  color: white;
+}
+
+.card {
+  min-height: 200px;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.fade-in {
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+/* CPUTasks */
+.diagnostic-grid-container {
+    font-family: monospace;
+    display: grid;
+    grid-template-columns: repeat(6, auto); /* 6 - 7  */
+    gap: 0px;
+    padding: 0px;
+    /*background-color: #f9f9f9;*/
+    border: 1px solid #ddd;
+    max-width: 1000px;
+    width: min-content;
+
+    & .grid-header, 
+    & .grid-item {
+        padding: 0px 2px ;
+        text-align: left;
+        border: 1px solid #ccc;
+        white-space: nowrap;
+        line-height: 0.9;
+    }
+    
+    & .r {
+        text-align: right;
+    }
+    
+    .grid-header {
+        font-weight: bold;
+        /*background-color: #e0e0e0;*/
+    }
+}
+
+/* bootstrap */
+/* Уменьшаем базовый размер шрифта */
+html {
+  font-size: 14px; /* Было 16px, теперь 14px */
+}
+
+.card {
+    --bs-card-spacer-y: 0.25rem;
+    --bs-card-spacer-x: 0.25rem;
+    --bs-card-cap-padding-y: 2px;
+    --bs-card-cap-padding-x: 6px;
+    line-height:1.1;
+
+    /*--bs-card-height: 26px;*/
+}
+
+/* Переопределяем padding для всех элементов Bootstrap */
+/*.btn,
+.card,
+.form-control,
+.input-group,
+.list-group-item,
+.nav-link,
+.navbar,
+.alert,
+.badge,
+.breadcrumb,
+.dropdown-menu,
+.modal-content,
+.table td,
+.table th,
+.container,
+.row > * {
+  padding1: 0.25rem 0.5rem !important;*/ /* Уменьшаем до 4px 8px */
+/*}*/
+
+/* Уменьшаем шрифт для текста */
+/*body,
+.btn,
+.form-control,
+.input-group-text,
+.list-group-item,
+.nav-link,
+.navbar,
+.alert,
+.badge,
+.breadcrumb-item,
+.dropdown-item,
+.modal-body,
+.table {
+  font-size: 0.875rem;*/ /* 14px при базовом 16px, теперь ~12px */
+/*}*/
+
+/* Уменьшаем заголовки */
+h1, .h1 { font-size: 1.75rem; } /* ~24px */
+h2, .h2 { font-size: 1.5rem; }  /* ~21px */
+h3, .h3 { font-size: 1.25rem; } /* ~17px */
+h4, .h4 { font-size: 1rem; }    /* ~14px */
+h5, .h5 { font-size: 0.875rem; } /* ~12px */
+h6, .h6 { font-size: 0.75rem; }  /* ~10px */
