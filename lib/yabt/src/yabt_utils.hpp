@@ -30,6 +30,17 @@ namespace yabt
 {
     struct BtDeviceAddrSpan;
 
+    // Lightweight wrapper around a 6-byte Bluetooth device address.
+    //
+    // Purpose:
+    // - Provides convenient construction/assignment from esp_bd_addr_t and from BtDeviceAddrSpan.
+    // - Implements comparisons (<, ==, !=) so it can be used as key in std::map/std::set.
+    // - Adds toString() helper for human-readable address formatting.
+    //
+    // Notes:
+    // - Inherits std::array<uint8_t,6> to keep a small, POD-like layout.
+    // - Comparison operators are implemented lexicographically (MSB-first) to give deterministic ordering.
+    // - Use BtDeviceAddrSpan when you want a non-owning view of a 6-byte address (no copy).
     struct BtDeviceAddr : public std::array<uint8_t, 6>
     {
         using std::array<uint8_t, 6>::array;
@@ -52,6 +63,14 @@ namespace yabt
         std::string toString() const;
     };
 
+    // Lightweight non-owning view of a 6-byte Bluetooth device address.
+    //
+    // Purpose:
+    // - Wraps a std::span<const uint8_t,6> to avoid copying address bytes.
+    // - Constructible from esp_bd_addr_t (by reference or pointer).
+    // - Implements lexicographic comparisons (<, ==, !=) and toString() for use in maps and logging.
+    // - Use BtDeviceAddrSpan when you need a cheap, temporary view into existing address memory
+    //   (for example, addresses owned by BLE report structures) without allocating or copying.
     struct BtDeviceAddrSpan
     {
         std::span<const uint8_t, 6> data;
@@ -71,10 +90,30 @@ namespace yabt
         std::string toString() const;
     };
 
-    /// @bri Все данные из esp_ble_gap_ext_adv_report_t в т.ч. полученные из process_adv_data.
+    /// @brief Все данные из esp_ble_gap_ext_adv_report_t в т.ч. полученные из process_adv_data.
     ///      Формируется из esp_ble_gap_ext_adv_report_t.
     ///     Используется при поиске, если адрес неизвестен и надо передать данные в поисковые обработчики .
-    // TODO List type data in map. Check can has function.
+    /// TODO List type data in map. Check can has function.
+    ///
+    /// Lightweight wrapper around esp_ble_gap_ext_adv_report_t that:
+    /// - collects and indexes AD segments (stores spans into the original adv buffer),
+    /// - provides convenient typed accessors (flags, names, TX power, UUID lists, manufacturer data, etc.),
+    /// - formats human-readable strings for logging (address, PHY, RSSI, parsed AD types).
+    ///
+    /// Key points:
+    /// - Construct from esp_ble_gap_ext_adv_report_t (by pointer or reference).
+    /// - parsed_data holds std::span views into the report's adv_data (no deep copy) — the original report buffer
+    ///   must remain valid while this object is used.
+    /// - Use the typed getters (getFlags, getCompleteLocalName, getManufacturerId, get16BitServiceUUIDs, ...)
+    ///   in recognizers or logging code to implement device detection and event creation.
+    ///
+    /// Typical usage:
+    ///   BleGapExtAdvReport rep(param->ext_adv_report.params);
+    ///   if (myRecognizer.CanHandle(rep)) { myRecognizer.SendEvent(loop, rep); }
+    ///
+    /// Notes:
+    /// - Parsing is defensive: getters return std::optional when data is missing or has unexpected size.
+    /// - Keep instances short-lived or ensure the original esp_ble_gap_ext_adv_report_t and its adv_data live long enough.
     class BleGapExtAdvReport
     {
     private:

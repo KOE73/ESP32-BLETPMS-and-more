@@ -132,6 +132,10 @@ namespace yabt
 
     /// @brief  Base class for device recognition.
     ///         Derived classes process GAP reports via CanHandle.
+    /// 
+    ///         Base class for a "device recognizer" — a small object that looks at BLE advertising reports and decides
+    ///          whether the report belongs to a device type it knows how to handle.
+    ///         Recognizers are lightweight: they do matching, log, and can post an event when they find a device.
     class BtDeviceRecognizerBase
     {
     public:
