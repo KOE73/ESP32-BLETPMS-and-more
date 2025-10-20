@@ -75,7 +75,12 @@
         "cstring": "cpp",
         "ranges": "cpp",
         "lv_demo_widgets.h": "c",
-        "lv_os.h": "c"
+        "lv_os.h": "c",
+        "condition_variable": "cpp",
+        "ratio": "cpp",
+        "fstream": "cpp",
+        "semaphore": "cpp",
+        "stop_token": "cpp"
     },
     "editor.minimap.scale": 2,
     "editor.minimap.showSlider": "always",

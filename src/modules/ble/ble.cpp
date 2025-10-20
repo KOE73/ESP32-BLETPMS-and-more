@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <cbor.h>
+
 #include <string>
 #include <format>
 #include <unordered_map>
@@ -17,21 +19,20 @@
 
 #include "bluetooth-SIG/assigned_numbers/company_identifiers/company_identifiers.hpp"
 
+#include "ble_debug.hpp"
+
 #include "yabt.hpp"
 
 // Теги для логирования
 static const char *TAG_BLE = "BLE";
-static const char *TAG_BLE_CALLBACK = "BLE_CB";
+static const char *TAG_BLE_CALLBACK = "BLE_CALLBACK";
 static const char *TAG_BLE_GATTC = "BLE_GATTC";
 
 #define LOG_GATTC_COLOR LOG_ANSI_COLOR_BOLD_BACKGROUND(LOG_COLOR_GREEN, LOG_ANSI_COLOR_BG_YELLOW)
 
 #define INVALID_HANDLE 0
 
-void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report);
-void esp_gap_cb(esp_ble_gap_ext_adv_report_t &report);
 static void connectHR();
-std::string process_adv_data(const uint8_t *data, uint8_t data_len, esp_ble_adv_data_type type);
 
 // Pointer to User defined scan_params data structure. This memory space can not be freed until callback of set_scan_params
 esp_ble_scan_params_t scan_params = {
@@ -102,6 +103,7 @@ static bool ble_gap_callback_legacy(esp_gap_ble_cb_event_t event, esp_ble_gap_cb
         }
         return true;
 
+        //
     case ESP_GAP_BLE_SCAN_RESULT_EVT:
         switch (param->scan_rst.search_evt)
         {
@@ -186,7 +188,7 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
 
     case ESP_GAP_BLE_EXT_ADV_REPORT_EVT:
     {
-        esp_ble_gap_ext_adv_report_t *report = &param->ext_adv_report.params;
+        // esp_ble_gap_ext_adv_report_t *report = &param->ext_adv_report.params;
 
         const yabt::BleGapExtAdvReport Report(param->ext_adv_report.params);
         yabt::BTController::getInstance().GapHanler(Report);
@@ -357,274 +359,6 @@ static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_
     }
 }
 
-// Функция форматирования структуры esp_ble_gap_ext_adv_report_t
-void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report)
-{
-    // Форматируем каждое поле
-    std::string event_type_str = std::format("Event Type: 0x{:02x}", report.event_type);
-    std::string addr_type_str = std::format("Address Type: 0x{:02x}", report.addr_type);
-    std::string addr_str = std::format("Address: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", ESP_BD_ADDR_HEX(report.addr), report.addr[0]);
-    std::string primary_phy_str = std::format("Primary PHY: 0x{:02x}", report.primary_phy);
-    std::string secondary_phy_str = std::format("Secondary PHY: 0x{:02x}", report.secondly_phy);
-    std::string sid_str = std::format("SID: {}", report.sid);
-    std::string tx_power_str = std::format("Tx Power: {} dBm", report.tx_power);
-    std::string rssi_str = std::format("RSSI: {} dBm", report.rssi);
-    std::string per_adv_interval_str = std::format("Periodic Adv Interval: {} ms", report.per_adv_interval * 125 / 100);
-    std::string dir_addr_type_str = std::format("Direct Address Type: 0x{:02x}", report.dir_addr_type);
-    std::string dir_addr_str = std::format("Direct Address: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", ESP_BD_ADDR_HEX(report.dir_addr));
-    std::string data_status_str = std::format("Data Status: 0x{:02x}", report.data_status);
-    std::string adv_data_len_str = std::format("Adv Data Length: {}", report.adv_data_len);
-
-    // Форматируем adv_data как hex-строку
-    std::string adv_data_str = "Adv Data: ";
-    for (int i = 0; i < report.adv_data_len; i++)
-    {
-        adv_data_str += std::format("{:02x} ", report.adv_data[i]);
-    }
-
-    // Выводим все строки в лог
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", event_type_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", addr_type_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", addr_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", primary_phy_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", secondary_phy_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", sid_str.c_str());
-    // ESP_LOGI(TAG_BLE_CALLBACK, "%s", tx_power_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", rssi_str.c_str());
-    // ESP_LOGI(TAG_BLE_CALLBACK, "%s", per_adv_interval_str.c_str());
-    // ESP_LOGI(TAG_BLE_CALLBACK, "%s", dir_addr_type_str.c_str());
-    // ESP_LOGI(TAG_BLE_CALLBACK, "%s", dir_addr_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", data_status_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", adv_data_len_str.c_str());
-    ESP_LOGI(TAG_BLE_CALLBACK, "%s", adv_data_str.c_str());
-}
-
-// Обработчик BLE-событий
-void esp_gap_cb(esp_ble_gap_ext_adv_report_t &report)
-{
-    // Список всех типов
-    esp_ble_adv_data_type types[] = {
-        ESP_BLE_AD_TYPE_FLAG, ESP_BLE_AD_TYPE_16SRV_PART, ESP_BLE_AD_TYPE_16SRV_CMPL,
-        ESP_BLE_AD_TYPE_32SRV_PART, ESP_BLE_AD_TYPE_32SRV_CMPL, ESP_BLE_AD_TYPE_128SRV_PART,
-        ESP_BLE_AD_TYPE_128SRV_CMPL, ESP_BLE_AD_TYPE_NAME_SHORT, ESP_BLE_AD_TYPE_NAME_CMPL,
-        ESP_BLE_AD_TYPE_TX_PWR, ESP_BLE_AD_TYPE_DEV_CLASS, ESP_BLE_AD_TYPE_SM_TK,
-        ESP_BLE_AD_TYPE_SM_OOB_FLAG, ESP_BLE_AD_TYPE_INT_RANGE, ESP_BLE_AD_TYPE_SOL_SRV_UUID,
-        ESP_BLE_AD_TYPE_128SOL_SRV_UUID, ESP_BLE_AD_TYPE_SERVICE_DATA, ESP_BLE_AD_TYPE_PUBLIC_TARGET,
-        ESP_BLE_AD_TYPE_RANDOM_TARGET, ESP_BLE_AD_TYPE_APPEARANCE, ESP_BLE_AD_TYPE_ADV_INT,
-        ESP_BLE_AD_TYPE_LE_DEV_ADDR, ESP_BLE_AD_TYPE_LE_ROLE, ESP_BLE_AD_TYPE_SPAIR_C256,
-        ESP_BLE_AD_TYPE_SPAIR_R256, ESP_BLE_AD_TYPE_32SOL_SRV_UUID, ESP_BLE_AD_TYPE_32SERVICE_DATA,
-        ESP_BLE_AD_TYPE_128SERVICE_DATA,
-        // ESP_BLE_AD_TYPE_LE_SECURE_CONFIRM, ESP_BLE_AD_TYPE_LE_SECURE_RANDOM,
-        // ESP_BLE_AD_TYPE_URI, ESP_BLE_AD_TYPE_INDOOR_POSITION, ESP_BLE_AD_TYPE_TRANS_DISC_DATA,
-        // ESP_BLE_AD_TYPE_LE_SUPPORT_FEATURE, ESP_BLE_AD_TYPE_CHAN_MAP_UPDATE,
-        ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE};
-
-    int num_types = sizeof(types) / sizeof(types[0]);
-
-    for (int i = 0; i < num_types; i++)
-    {
-        std::string result = process_adv_data(report.adv_data, report.adv_data_len, types[i]);
-        if (result.empty())
-            continue;
-        ESP_LOGI(TAG_BLE_CALLBACK, "%s", result.c_str());
-    }
-}
-
-// Функция обработки данных рекламы с возвратом строки
-std::string process_adv_data(const uint8_t *data, uint8_t data_len, esp_ble_adv_data_type type)
-{
-    static std::string empty;
-    uint8_t length;
-    const uint8_t *value = esp_ble_resolve_adv_data_by_type((uint8_t *)data, data_len, type, &length);
-
-    if (value == NULL || length == 0)
-    {
-        return empty;
-        // return std::format("Type 0x{:02x}: Not present", (int)type);
-    }
-
-    switch (type)
-    {
-    case ESP_BLE_AD_TYPE_FLAG:
-    {
-        auto val = value[0];
-        std::string out;
-
-        // Устройство в ограниченном режиме обнаружения.
-        // Это означает, что устройство будет доступно только для некоторых типов соединений.
-        if (val & ESP_BLE_ADV_FLAG_LIMIT_DISC)
-            out.append("ESP_BLE_ADV_FLAG_LIMIT_DISC ");
-
-        // Устройство в общем режиме обнаружения.
-        // Устройство будет доступно для обнаружения всеми другими BLE-устройствами.
-        if (val & ESP_BLE_ADV_FLAG_GEN_DISC)
-            out.append("ESP_BLE_ADV_FLAG_GEN_DISC ");
-
-        // Устройство не поддерживает BR/EDR (Basic Rate / Enhanced Data Rate), то есть это чисто BLE-устройство.
-        // Указывает, что устройство не будет работать в классическом Bluetooth-режиме.
-        if (val & ESP_BLE_ADV_FLAG_BREDR_NOT_SPT)
-            out.append("ESP_BLE_ADV_FLAG_BREDR_NOT_SPT ");
-
-        if (val & ESP_BLE_ADV_FLAG_DMT_CONTROLLER_SPT)
-            out.append("ESP_BLE_ADV_FLAG_DMT_CONTROLLER_SPT ");
-
-        if (val & ESP_BLE_ADV_FLAG_DMT_HOST_SPT)
-            out.append("ESP_BLE_ADV_FLAG_DMT_HOST_SPT ");
-
-        return std::format("Flags: 0x{:02x} {}", value[0], out);
-    }
-
-    case ESP_BLE_AD_TYPE_16SRV_PART:
-    case ESP_BLE_AD_TYPE_16SRV_CMPL:
-    case ESP_BLE_AD_TYPE_SOL_SRV_UUID:
-    {
-        std::string result = "16-bit UUIDs: ";
-        for (int i = 0; i < length; i += 2)
-        {
-            uint16_t uuid = (value[i + 1] << 8) | value[i];
-            result += std::format("0x{:04x} ", uuid);
-        }
-        return result;
-    }
-    case ESP_BLE_AD_TYPE_32SRV_PART:
-    case ESP_BLE_AD_TYPE_32SRV_CMPL:
-    case ESP_BLE_AD_TYPE_32SOL_SRV_UUID:
-    {
-        std::string result = "32-bit UUIDs: ";
-        for (int i = 0; i < length; i += 4)
-        {
-            uint32_t uuid = (value[i + 3] << 24) | (value[i + 2] << 16) | (value[i + 1] << 8) | value[i];
-            result += std::format("0x{:08x} ", uuid);
-        }
-        return result;
-    }
-    case ESP_BLE_AD_TYPE_128SRV_PART:
-    case ESP_BLE_AD_TYPE_128SRV_CMPL:
-    case ESP_BLE_AD_TYPE_128SOL_SRV_UUID:
-        return std::format("128-bit UUID: {:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-                           value[15], value[14], value[13], value[12], value[11], value[10], value[9], value[8],
-                           value[7], value[6], value[5], value[4], value[3], value[2], value[1], value[0]);
-    case ESP_BLE_AD_TYPE_NAME_SHORT:
-    case ESP_BLE_AD_TYPE_NAME_CMPL:
-        return std::format("Name: {}", std::string((const char *)value, length));
-    case ESP_BLE_AD_TYPE_TX_PWR:
-        return std::format("Tx Power: {} dBm", (int8_t)value[0]);
-    case ESP_BLE_AD_TYPE_DEV_CLASS:
-        return std::format("Device Class: 0x{:02x}{:02x}{:02x}", value[2], value[1], value[0]);
-    case ESP_BLE_AD_TYPE_SM_TK:
-    {
-        std::string result = "SM TK: ";
-        for (int i = 0; i < length; i++)
-        {
-            result += std::format("{:02x} ", value[i]);
-        }
-        return result;
-    }
-    case ESP_BLE_AD_TYPE_SM_OOB_FLAG:
-        return std::format("SM OOB Flags: 0x{:02x}", value[0]);
-    case ESP_BLE_AD_TYPE_INT_RANGE:
-        return std::format("Interval Range: Min {}, Max {}",
-                           (value[1] << 8) | value[0], (value[3] << 8) | value[2]);
-    case ESP_BLE_AD_TYPE_SERVICE_DATA:
-    case ESP_BLE_AD_TYPE_32SERVICE_DATA:
-    case ESP_BLE_AD_TYPE_128SERVICE_DATA:
-    {
-        std::string result = "Service Data: ";
-        for (int i = 0; i < length; i++)
-        {
-            result += std::format("{:02x} ", value[i]);
-        }
-        return result;
-    }
-    case ESP_BLE_AD_TYPE_PUBLIC_TARGET:
-    case ESP_BLE_AD_TYPE_RANDOM_TARGET:
-    {
-        std::string result = "Target Address: ";
-        for (int i = 0; i < length; i += 6)
-        {
-            result += std::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} ",
-                                  value[i + 5], value[i + 4], value[i + 3], value[i + 2], value[i + 1], value[i]);
-        }
-        return result;
-    }
-    case ESP_BLE_AD_TYPE_APPEARANCE:
-        return std::format("Appearance: 0x{:04x}", (value[1] << 8) | value[0]);
-    case ESP_BLE_AD_TYPE_ADV_INT:
-        return std::format("Adv Interval: {} ms", ((value[1] << 8) | value[0]) * 625 / 1000);
-    case ESP_BLE_AD_TYPE_LE_DEV_ADDR:
-        return std::format("LE Device Address: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", ESP_BD_ADDR_HEX(value));
-    case ESP_BLE_AD_TYPE_LE_ROLE:
-        return std::format("LE Role: 0x{:02x}", value[0]);
-    case ESP_BLE_AD_TYPE_SPAIR_C256:
-    case ESP_BLE_AD_TYPE_SPAIR_R256:
-    {
-        std::string result = type == ESP_BLE_AD_TYPE_SPAIR_C256 ? "Secure Pairing C256: " : "Secure Pairing R256: ";
-        for (int i = 0; i < length; i++)
-        {
-            result += std::format("{:02x} ", value[i]);
-        }
-        return result;
-    }
-    case ESP_BLE_AD_TYPE_LE_SECURE_CONFIRM:
-    case ESP_BLE_AD_TYPE_LE_SECURE_RANDOM:
-    {
-        std::string result = type == ESP_BLE_AD_TYPE_LE_SECURE_CONFIRM ? "LE Secure Confirm: " : "LE Secure Random: ";
-        for (int i = 0; i < length; i++)
-        {
-            result += std::format("{:02x} ", value[i]);
-        }
-        return result;
-    }
-    case ESP_BLE_AD_TYPE_URI:
-        return std::format("URI: {}", std::string((const char *)value, length));
-    case ESP_BLE_AD_TYPE_INDOOR_POSITION:
-        return std::format("Indoor Positioning: {}", value[0] ? "Enabled" : "Disabled");
-    case ESP_BLE_AD_TYPE_TRANS_DISC_DATA:
-    {
-        std::string result = "Transport Discovery Data: ";
-        for (int i = 0; i < length; i++)
-        {
-            result += std::format("{:02x} ", value[i]);
-        }
-        return result;
-    }
-    case ESP_BLE_AD_TYPE_LE_SUPPORT_FEATURE:
-    {
-        std::string result = "LE Supported Features: ";
-        for (int i = 0; i < length; i++)
-        {
-            result += std::format("{:02x} ", value[i]);
-        }
-        return result;
-    }
-    case ESP_BLE_AD_TYPE_CHAN_MAP_UPDATE:
-    {
-        std::string result = "Channel Map Update: ";
-        for (int i = 0; i < length; i++)
-        {
-            result += std::format("{:02x} ", value[i]);
-        }
-        return result;
-    }
-    case ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE:
-    {
-        std::string result = std::format("Manufacturer Data - Company ID: 0x{:04x}, Data: ", (value[1] << 8) | value[0]);
-        for (int i = 2; i < length; i++)
-        {
-            result += std::format("{:02x} ", value[i]);
-        }
-        return result;
-    }
-    default:
-        std::string result = std::format("Unknown type 0x{:02x}: ", (int)type);
-        for (int i = 0; i < length; i++)
-        {
-            result += std::format("{:02x} ", value[i]);
-        }
-        return result;
-    }
-}
-
 #pragma region GATCC
 
 struct GATTServiceInfo
@@ -710,11 +444,88 @@ void print_found_services()
     ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "%s" LOG_ANSI_COLOR_RESET, result.c_str());
 }
 
-// Обработчик GATT-событий
+// ============================================================================
+// 🧭 GATTC EVENT FLOW — Full Connection Lifecycle
+// ----------------------------------------------------------------------------
+// This callback (esp_gattc_callback) handles all GATT client events.
+// Below is the typical sequence and logic of BLE connection and communication.
+//
+//  1️⃣ REGISTRATION PHASE
+//     - esp_ble_gattc_app_register(app_id)
+//         ↓
+//     → ESP_GATTC_REG_EVT
+//         ⚙️ The app is registered in BLE stack.
+//         ⚠️ Save gattc_if (interface handle). You'll need it for all GATT calls.
+//
+//  2️⃣ CONNECTION PHASE
+//     - esp_ble_gattc_open(gattc_if, remote_bda, addr_type, direct)
+//         ↓
+//     → ESP_GATTC_CONNECT_EVT
+//         ⚙️ Physical BLE link established (radio-level connection).
+//         ⚠️ Save conn_id and remote_bda.
+//         💡 Connection *started successfully*, but not yet confirmed.
+//
+//         ↓
+//     → ESP_GATTC_OPEN_EVT
+//         ⚙️ Connection attempt finished (success or failure).
+//         ⚠️ Check param->open.status == ESP_GATT_OK.
+//         ✅ If success → start service discovery (esp_ble_gattc_search_service)
+//
+//  3️⃣ SERVICE DISCOVERY PHASE
+//     - esp_ble_gattc_search_service(gattc_if, conn_id, NULL)
+//         ↓
+//     → ESP_GATTC_SEARCH_RES_EVT
+//         ⚙️ One service found. Store start_handle, end_handle, and UUID.
+//         💡 Called once per service.
+//
+//         ↓
+//     → ESP_GATTC_SEARCH_CMPL_EVT
+//         ⚙️ Service discovery complete.
+//         ✅ You can now read/write characteristics or enable notifications.
+//
+//  4️⃣ DATA EXCHANGE PHASE
+//     - esp_ble_gattc_read_char() → triggers ESP_GATTC_READ_CHAR_EVT
+//         ⚙️ Characteristic value received from server.
+//
+//     - esp_ble_gattc_write_char() → triggers ESP_GATTC_WRITE_CHAR_EVT
+//         ⚙️ Server acknowledged write operation.
+//
+//     - Notifications/Indications from server → ESP_GATTC_NOTIFY_EVT
+//         ⚙️ Server pushed data update (e.g., sensor value, HRM, TPMS, etc.)
+//
+//  5️⃣ DISCONNECTION PHASE
+//     - esp_ble_gattc_close()  or  device out of range
+//         ↓
+//     → ESP_GATTC_DISCONNECT_EVT
+//         ⚙️ BLE link terminated.
+//         ⚠️ Cleanup connection data, stop timers, reset UI, etc.
+//
+// ----------------------------------------------------------------------------
+// 💡 NOTE:
+// - ESP_GATTC_CONNECT_EVT  → connection established (from controller)
+// - ESP_GATTC_OPEN_EVT     → connection confirmed (from API)
+// - Both may appear in quick succession — handle both safely.
+//
+// - Always check status codes (param->*.status) before acting.
+// - Some events (READ, WRITE, NOTIFY) may repeat frequently during operation.
+//
+// ============================================================================
 static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if_param, esp_ble_gattc_cb_param_t *param)
 {
     switch (event)
     {
+        // ESP_GATTC_REG_EVT:
+        // 🔹 Triggered after you call esp_ble_gattc_app_register()
+        // 🔹 Means: "Your GATT client app has been registered with the BLE stack"
+        //
+        // ⚠️ IMPORTANT: Save the provided gattc_if handle!
+        //     └─ You'll need it for all future GATT operations (connect, read, write, etc.)
+        //
+        // 🔹 This is usually the **first** event you receive after BLE initialization
+        // 🔹 Once registration succeeds, you can start scanning or connecting to devices
+        //
+        // 💡 Tip: If status == ESP_GATT_OK → registration succeeded.
+        //         Otherwise, check the error code for the reason of failure.
     case ESP_GATTC_REG_EVT:
         if (param->reg.status == ESP_GATT_OK)
         {
@@ -727,6 +538,14 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         }
         break;
 
+        // ESP_GATTC_CONNECT_EVT:
+        // 🔹 Triggered when the client successfully connects to a BLE device
+        // 🔹 Means: "Connection established with the server"
+        // ⚠️ IMPORTANT: Save the connection ID (conn_id) here!
+        //     └─ This ID is required for all future GATT operations
+        // 🔹 You can now start discovering services using:
+        //     esp_ble_gattc_search_service(gattc_if, conn_id, NULL);
+        // 🔹 param->connect.remote_bda gives the server’s Bluetooth address
     case ESP_GATTC_CONNECT_EVT:
     {
         auto connect = &param->connect;
@@ -734,6 +553,20 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         break;
     }
 
+        // ESP_GATTC_DISCONNECT_EVT:
+        // 🔹 Triggered when the client disconnects from a BLE device
+        // 🔹 Can happen either:
+        //     - because you called esp_ble_gattc_close(), OR
+        //     - because the remote device disconnected / went out of range
+        //
+        // ⚠️ IMPORTANT: Cleanup connection data here!
+        //     └─ Clear or mark conn_id, remove device state from your connection list
+        //     └─ Stop any timers, UI updates, or data subscriptions linked to this device
+        //
+        // 🔹 param->disconnect.reason gives the disconnection reason (BT status code)
+        // 🔹 param->disconnect.remote_bda is the address of the disconnected device
+        //
+        // 💡 Tip: If you expect reconnection, you can restart scanning here.
     case ESP_GATTC_DISCONNECT_EVT:
     {
         auto disconnect = &param->disconnect;
@@ -742,7 +575,23 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         break;
     }
 
-    /* When GATT virtual connection is set up */
+        // ESP_GATTC_OPEN_EVT:
+        // 🔹 Triggered after calling esp_ble_gattc_open() or esp_ble_gattc_aux_open()
+        // 🔹 Means: "The connection attempt has completed"
+        //
+        // ⚠️ IMPORTANT: Check param->open.status!
+        //     └─ ESP_GATT_OK → connection established successfully
+        //     └─ Any other value → connection failed (device unreachable, timeout, etc.)
+        //
+        // ⚙️ If connection succeeded:
+        //     └─ Save param->open.conn_id (connection ID)
+        //     └─ You can now start discovering services via esp_ble_gattc_search_service()
+        //
+        // 🔹 param->open.remote_bda contains the address of the connected device
+        // 🔹 param->open.mtu gives the negotiated MTU (if already exchanged)
+        //
+        // 💡 Tip: This event is the *confirmation* of a connection,
+        //         while ESP_GATTC_CONNECT_EVT is the *notification* that it started.
     case ESP_GATTC_OPEN_EVT:
     {
         if (param->open.status == ESP_GATT_OK)
@@ -758,6 +607,29 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         break;
     }
 
+        // ESP_GATTC_READ_CHAR_EVT:
+        // 🔹 Triggered after calling esp_ble_gattc_read_char() or esp_ble_gattc_read_by_handle()
+        // 🔹 Means: "The GATT server has responded with the value of the characteristic"
+        //
+        // ⚙️ Happens during the DATA EXCHANGE phase (after services and characteristics are discovered)
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ Check param->read.status == ESP_GATT_OK before using the data
+        //     └─ The actual value is in param->read.value, with length param->read.value_len
+        //     └─ Use param->read.handle to identify which characteristic this value came from
+        //
+        // 🔹 Typical use:
+        //     - Read sensor values, device info, or config data stored in a characteristic
+        //     - Often used once after connection or after a configuration change
+        //
+        // 💡 Tip:
+        //     - For continuous updates, use notifications instead (ESP_GATTC_NOTIFY_EVT)
+        //     - You can queue multiple read requests, but handle them sequentially
+        //
+        // Example flow:
+        //     esp_ble_gattc_read_char(gattc_if, conn_id, handle, ESP_GATT_AUTH_REQ_NONE);
+        //         ↓
+        //     → ESP_GATTC_READ_CHAR_EVT (with data)
     case ESP_GATTC_READ_CHAR_EVT:
     {
         auto &read = param->read;
@@ -788,7 +660,33 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         break;
     }
 
-    /* GATT service discovery result is got */
+        // ESP_GATTC_SEARCH_RES_EVT:
+        // 🔹 Triggered during service discovery after calling esp_ble_gattc_search_service()
+        // 🔹 Means: "One service has been found on the connected BLE server"
+        //
+        // ⚙️ Happens once per discovered service — you'll get multiple of these if the device has several services.
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ Each event describes ONE service:
+        //          • param->search_res.srvc_id.uuid — UUID of the service
+        //          • param->search_res.start_handle / end_handle — service handle range
+        //          • param->search_res.conn_id — connection this belongs to
+        //     └─ Save this info (e.g., into your vector or map of discovered services)
+        //
+        // 🔹 Typical next step:
+        //     - After collecting all services, wait for ESP_GATTC_SEARCH_CMPL_EVT
+        //       → then start discovering characteristics (esp_ble_gattc_get_characteristic)
+        //
+        // 💡 Tip:
+        //     - You can filter by UUID here if you only care about specific services (like 0x180F = Battery)
+        //     - Use this event to log or debug available services
+        //
+        // Example flow:
+        //     esp_ble_gattc_search_service(gattc_if, conn_id, NULL);
+        //         ↓
+        //     → ESP_GATTC_SEARCH_RES_EVT (called multiple times — once per service)
+        //         ↓
+        //     → ESP_GATTC_SEARCH_CMPL_EVT (when all services are reported)
     case ESP_GATTC_SEARCH_RES_EVT:
     {
         auto &res = param->search_res;
@@ -815,6 +713,36 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         break;
     }
 
+        // ESP_GATTC_SEARCH_CMPL_EVT:
+        // 🔹 Triggered after esp_ble_gattc_search_service() has finished
+        // 🔹 Means: "Service discovery completed for this connection"
+        //
+        // ⚙️ Happens once per connection, after all ESP_GATTC_SEARCH_RES_EVT events are sent.
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ Check param->search_cmpl.status == ESP_GATT_OK
+        //     └─ If OK → all services were successfully discovered
+        //     └─ You can now proceed to discover characteristics or descriptors
+        //          • esp_ble_gattc_get_characteristic()
+        //          • esp_ble_gattc_get_descr_by_char_handle()
+        //     └─ Use saved start_handle / end_handle ranges from SEARCH_RES events
+        //
+        // 🔹 Typical use:
+        //     - Initialize characteristic discovery
+        //     - Enable notifications for interesting characteristics
+        //     - Read initial characteristic values if needed
+        //
+        // 💡 Tip:
+        //     - This is a good place to log all found services
+        //     - If device doesn’t respond with any services, status might still be OK,
+        //       but your list will be empty → handle this case gracefully
+        //
+        // Example flow:
+        //     esp_ble_gattc_search_service(gattc_if, conn_id, NULL);
+        //         ↓
+        //     → ESP_GATTC_SEARCH_RES_EVT (called once per service)
+        //         ↓
+        //     → ESP_GATTC_SEARCH_CMPL_EVT (discovery complete)
     case ESP_GATTC_SEARCH_CMPL_EVT:
     {
         print_found_services();
@@ -939,7 +867,79 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         break;
     }
 
+        // ESP_GATTC_DIS_SRVC_CMPL_EVT:
+        // 🔹 Triggered after calling esp_ble_gattc_close() or esp_ble_gattc_disconnect()
+        // 🔹 Means: "Service discovery data and GATT database have been released for this connection"
+        //
+        // ⚙️ Happens when the BLE stack finishes cleaning up all internal GATT structures
+        //    associated with a connection that has been closed.
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ This is a *post-disconnection cleanup* event.
+        //     └─ All handles, service lists, and cached attributes for this conn_id are now invalid.
+        //     └─ Do NOT access any service or characteristic data from this connection after this point.
+        //
+        // 🔹 Typical use:
+        //     - Finalize disconnection sequence
+        //     - Free any user-side memory or objects linked to this device
+        //     - Prepare for a possible reconnection
+        //
+        // 💡 Tip:
+        //     - Often follows ESP_GATTC_DISCONNECT_EVT automatically
+        //     - If you reconnect to the same device, the GATT DB will be rediscovered
+        //
+        // Example flow:
+        //     esp_ble_gattc_close(gattc_if, conn_id);
+        //         ↓
+        //     → ESP_GATTC_DISCONNECT_EVT  (link lost or closed)
+        //         ↓
+        //     → ESP_GATTC_DIS_SRVC_CMPL_EVT (stack finished cleanup)
     case ESP_GATTC_DIS_SRVC_CMPL_EVT: /*!< When the ble discover service complete, the event comes */
+    {
+        if (param->search_cmpl.status == ESP_GATT_OK)
+        {
+            ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "BLE discover service complete, conn_id = %d" LOG_ANSI_COLOR_RESET, param->search_cmpl.conn_id);
+        }
+        else
+        {
+            ESP_LOGE(TAG_BLE_GATTC, LOG_GATTC_COLOR "BLE discover service failed: %d" LOG_ANSI_COLOR_RESET, param->search_cmpl.status);
+        }
+        break;
+    }
+
+    // ESP_GATTC_NOTIFY_EVT:
+// 🔹 Triggered when the server sends a value update (notification or indication)
+// 🔹 Means: "The characteristic value was pushed from the server to the client"
+//
+// ⚠️ IMPORTANT:
+//     └─ param->notify.is_notify == true  → Notification (no ack required)
+//     └─ param->notify.is_notify == false → Indication (ack handled by stack)
+//     └─ Use param->notify.handle to know WHICH characteristic sent the data
+//     └─ The bytes are in param->notify.value (length = param->notify.value_len)
+//
+// 🔹 Typical use:
+//     - Continuous sensor updates (heart rate, TPMS, etc.)
+//     - Real-time streams without polling (more efficient than read)
+//
+// 💡 To receive this event you MUST:
+//     1) Register for notifications:
+//          esp_ble_gattc_register_for_notify(gattc_if, remote_bda, char_handle);
+//     2) Enable the CCCD (0x2902) descriptor of that characteristic:
+//          write 0x0001 → notifications ON
+//          write 0x0002 → indications  ON
+//          (0x0003 → both; 0x0000 → off)
+//
+// Example flow:
+//     discover services/characteristics → get char_handle & cccd_handle
+//         ↓
+//     esp_ble_gattc_register_for_notify(gattc_if, remote_bda, char_handle);
+//         ↓
+//     esp_ble_gattc_write_char_descr(gattc_if, conn_id, cccd_handle,
+//                                    sizeof(uint16_t), (uint8_t*)"\x01\x00",
+//                                    ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
+//         ↓
+//     → ESP_GATTC_NOTIFY_EVT (called whenever the server pushes an update)
+    case ESP_GATTC_NOTIFY_EVT: /*!< When the ble discover service complete, the event comes */
     {
         if (param->search_cmpl.status == ESP_GATT_OK)
         {
