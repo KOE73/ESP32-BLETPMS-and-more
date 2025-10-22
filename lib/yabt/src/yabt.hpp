@@ -47,6 +47,7 @@ typedef enum yabt_events
 {
     YABT_EVENT_TPMS = 2, // TPMSData
     YABT_EVENT_TOMTOM_TPMS = YABT_EVENT_TPMS + 1,
+    YABT_EVENT_SMARTTAG = YABT_EVENT_TPMS + 2,
 } yabt_events_t;
 
 #pragma endregion

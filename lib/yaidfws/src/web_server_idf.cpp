@@ -117,7 +117,7 @@ namespace yaidfws
       return ESP_OK;
     }
 
-    if (r->content_len > HTTPD_MAX_REQ_HDR_LEN)
+    if (r->content_len > CONFIG_HTTPD_MAX_REQ_HDR_LEN)
     {
       ESP_LOGW(TAG, "Request size is to big: %zu", r->content_len);
       httpd_resp_send_err(r, HTTPD_400_BAD_REQUEST, nullptr);

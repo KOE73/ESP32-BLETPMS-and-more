@@ -630,15 +630,66 @@ namespace yabt
 
 #pragma region TODO
 
-        // TODO [ Длина ] [ Тип данных ] [ UUID сервиса (2 байта) ] [ Данные сервиса ]
-        std::optional<std::span<const uint8_t>> get16BitServiceData() const
+
+        //  @brief Extracts payload from BLE Service Data (AD type 0x16).
+        //
+        //  @param uuid
+        //      16-bit service UUID to match (e.g., 0xFD5A for Samsung SmartTag).
+        //      The byte order of the UUID in the advertising data is little-endian.
+        //
+        //  @returns
+        //      std::optional<std::span<const uint8_t>> — a view to the payload
+        //      (excluding UUID) if the block is found and UUID matches,
+        //      otherwise std::nullopt.
+        //
+        //  Purpose:
+        //      Returns the payload (useful data) from a BLE advertising block of type
+        //      "Service Data" (AD Type = 0x16, ESP_BLE_AD_TYPE_SERVICE_DATA)
+        //      for the specified 16-bit service UUID.
+        //
+        //  Service Data AD structure (AD Type 0x16):
+        //      [ UUID_L | UUID_H | Payload... ]
+        //
+        //      UUID_L, UUID_H  — 16-bit service UUID in little-endian format
+        //      Payload         — custom data defined by the manufacturer
+        //
+        //  Example (Samsung SmartTag EI-T5300):
+        //      Data: 5A FD 10 43 15 00 04 42 7F 9A 0E 62 20 07 10 01
+        //            |____|  |______________________________________|
+        //             UUID         Payload (TagState, Battery, Flags, ...)
+        //
+        //      UUID 0xFD5A → Samsung SmartTag service
+        //
+        //
+        //  Usage example:
+        //      auto payload = report.getServiceDataPayload(0xFD5A);
+        //      if (payload) { parseSmartTag(payload.value()); }
+        //
+        //  Note:
+        //      For other UUID lengths, different AD types exist:
+        //          • ESP_BLE_AD_TYPE_32SERVICE_DATA  (0x20)
+        //          • ESP_BLE_AD_TYPE_128SERVICE_DATA (0x21)
+        //      In those cases, replace subspan(2) with subspan(4) or subspan(16).
+        // -----------------------------------------------------------------------------
+        std::optional<std::span<const uint8_t>> getServiceDataPayload(uint16_t uuid) const
         {
-            auto it = parsed_data.find(ESP_BLE_AD_TYPE_SERVICE_DATA);
-            if (it != parsed_data.end() && it->second.size() == 3)
-            {
-                return it->second;
-            }
-            return std::nullopt;
+            // Find the Advertising Data block with type 0x16 (Service Data, 16-bit UUID)
+            auto rawOpt = getRawData(ESP_BLE_AD_TYPE_SERVICE_DATA);
+            if (!rawOpt.has_value())
+                return std::nullopt;
+
+            auto span = rawOpt.value();
+            if (span.size() <= 2)
+                return std::nullopt; // not enough data even for UUID
+
+            // Check 16-bit UUID (little-endian order)
+            uint16_t svcUuid = static_cast<uint16_t>(span[0] | (span[1] << 8));
+            if (svcUuid != uuid)
+                return std::nullopt;
+
+            // Return only the payload (skip UUID bytes)
+            // subspan(2) means "start from byte #2 and go to the end"
+            return span.subspan(2);
         }
 
         // ESP_BLE_AD_TYPE_PUBLIC_TARGET

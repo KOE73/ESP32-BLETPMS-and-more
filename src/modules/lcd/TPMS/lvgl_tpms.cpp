@@ -1,7 +1,12 @@
 // LCD Event Handling - Implementation File
 // Implements event-driven data updates for LVGL UI components
 
+#include "../lvgl_async_helper.hpp"
+
 #include "lvgl_tpms.hpp"
+
+#include <nlohmann/json.hpp>
+using nlohmann::json;
 
 namespace lcd
 {
@@ -36,14 +41,14 @@ namespace lcd
         lv_obj_set_style_bg_color(ui_Panel, lv_color_hex(0x001020), LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_bg_opa(ui_Panel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_border_color(ui_Panel, lv_color_hex(0x002030), LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_border_opa(ui_Panel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_border_opa(ui_Panel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_border_width(ui_Panel, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_shadow_color(ui_Panel, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_shadow_opa(ui_Panel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_shadow_width(ui_Panel, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_shadow_spread(ui_Panel, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_shadow_offset_x(ui_Panel, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_shadow_offset_y(ui_Panel, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_shadow_color(ui_Panel, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_shadow_opa(ui_Panel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_shadow_width(ui_Panel, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_shadow_spread(ui_Panel, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_shadow_offset_x(ui_Panel, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_shadow_offset_y(ui_Panel, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_text_color(ui_Panel, lv_color_hex(0x1ECDCF), LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_text_opa(ui_Panel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
@@ -51,32 +56,31 @@ namespace lcd
         lv_label_set_text(pressureLabel, "0.0");
         lv_obj_align(pressureLabel, LV_ALIGN_TOP_MID, 0, 0);
         lv_obj_set_size(pressureLabel, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        //lv_style_set_text_font(&style, &lv_font_montserrat_24);
-
+        // lv_style_set_text_font(&style, &lv_font_montserrat_24);
 
         // lv_obj_set_width(pressureLabel, LV_SIZE_CONTENT);  /// 1
         // lv_obj_set_height(pressureLabel, LV_SIZE_CONTENT); /// 1
         // lv_obj_set_x(pressureLabel, -174);
         // lv_obj_set_y(pressureLabel, -35);
-        //lv_obj_set_align(pressureLabel, LV_ALIGN_CENTER);
-        //lv_label_set_text(pressureLabel, "text");
+        // lv_obj_set_align(pressureLabel, LV_ALIGN_CENTER);
+        // lv_label_set_text(pressureLabel, "text");
         lv_obj_set_style_text_color(pressureLabel, lv_color_hex(0xFF4040), LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_text_opa(pressureLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_text_opa(pressureLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_text_font(pressureLabel, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_outline_color(pressureLabel, lv_color_hex(0xE3D5D5), LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_outline_opa(pressureLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_outline_width(pressureLabel, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-        //lv_obj_set_style_outline_pad(pressureLabel, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_outline_color(pressureLabel, lv_color_hex(0xE3D5D5), LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_outline_opa(pressureLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_outline_width(pressureLabel, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // lv_obj_set_style_outline_pad(pressureLabel, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
 
         temperatureLabel = lv_label_create(ui_Panel);
         lv_label_set_text(temperatureLabel, "-- °C");
         lv_obj_align(temperatureLabel, LV_ALIGN_BOTTOM_MID, 0, -5);
         lv_obj_set_size(temperatureLabel, LV_SIZE_CONTENT, 20);
         lv_obj_set_style_text_color(temperatureLabel, lv_color_hex(0xFF4040), LV_PART_MAIN | LV_STATE_DEFAULT);
-        
+
         lv_obj_set_style_text_font(temperatureLabel, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
-       
-        lv_obj_invalidate( container);
+
+        lv_obj_invalidate(container);
         ESP_LOGI("LCD----------", "! Make label end");
     }
 
@@ -95,20 +99,51 @@ namespace lcd
     /// @brief Updates UI labels when TPMS data changes.
     void LVGLHandler::onDataChanged(const yabt::TPMSData &data)
     {
-        std::cout << "TPMS Data updated: " << data.pressure_Psi << " Psi, "
-                  << data.temperatureC << " °C" << std::endl;
-        ESP_LOGI("LCD----------", "! Changing label");
+        ESP_LOGI("LCD----------", "TPMS updated: %.1f Psi, %.1f °C", data.pressure_Psi, data.temperatureC);
 
-        std::ostringstream stream;
-        stream << std::fixed << std::setprecision(1) << data.pressure_Psi;
-        lv_label_set_text(pressureLabel, stream.str().c_str());
-        
-        stream.str("");
-        stream << std::fixed << std::setprecision(1) << data.temperatureC << " °C";
-        lv_label_set_text(temperatureLabel, stream.str().c_str());
+        // Prepare JSON object (future CBOR-compatible structure)
+        json j = {
+            {"pressure_Psi", data.pressure_Psi},
+            {"temperature_C", data.temperatureC},
+            {"battery", data.batteryPercentage},
+            {"alarm", data.alarmFlag}};
 
-        lv_obj_invalidate(ui_Panel);
-        lv_obj_invalidate(pressureLabel);
+        // Copy JSON to heap (needed because lv_async_call executes later)
+
+        // auto *payload = new json(j);
+        auto cbor = json::to_cbor(j);
+        auto payload = std::vector<uint8_t>(std::move(cbor));
+        // auto *payload = new std::vector<uint8_t>(std::move(cbor));
+
+        // lv_label_set_text_fmt(pressureLabel, "%.1f", data.pressure_Psi);
+        // lv_label_set_text_fmt(temperatureLabel, "%.1f °C", data.temperatureC);
+
+        // Schedule GUI update on LVGL thread
+
+        lvgl::post([this, payload]()
+                   {
+                //std::unique_ptr<json> jptr(static_cast<json*>(param)); // auto-delete at the end
+                //const json &j = *jptr;
+                //std::unique_ptr<std::vector<uint8_t>> buf(static_cast<std::vector<uint8_t>*>(param));
+                auto j = json::from_cbor(payload);
+
+                float psi = j.value("pressure_Psi", 0.0f);
+                float temp = j.value("temperature_C", 0.0f);
+
+                ESP_LOGI("LCD----------", "Parsed CBOR: psi = %.1f, temp = %.1f °C", psi, temp);
+
+
+                lv_label_set_text_fmt(pressureLabel, "%.1f", psi);
+                lv_label_set_text_fmt(temperatureLabel, "%.1f °C", temp);
+
+                lv_obj_invalidate(pressureLabel);
+                lv_obj_invalidate(temperatureLabel);
+
+                lv_obj_mark_layout_as_dirty(pressureLabel);
+                lv_obj_mark_layout_as_dirty(temperatureLabel);
+                lv_refr_now(NULL);
+
+                ESP_LOGI("LCD----------", "Labels updated via CBOR/JSON payload"); });
 
         ESP_LOGI("LCD----------", "! Chenged label");
     }

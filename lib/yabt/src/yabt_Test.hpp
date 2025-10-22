@@ -26,7 +26,7 @@
 
 namespace yabt
 {
-    
+
     class BtDeviceRecognizerTest : public BtDeviceRecognizerBase
     {
     public:
@@ -37,10 +37,10 @@ namespace yabt
 
         bool CanHandle(const BleGapExtAdvReport &report) override;
         void Log(const BleGapExtAdvReport &report) override;
-         void SendEvent(esp_event_loop_handle_t yabt_loop,const BleGapExtAdvReport &report)override ;
+        void SendEvent(esp_event_loop_handle_t yabt_loop, const BleGapExtAdvReport &report) override;
 
     private:
-    BtDeviceRecognizerTest() = default; // Конструктор теперь пустой
+        BtDeviceRecognizerTest() = default; // Конструктор теперь пустой
 
         static BtDeviceRecognizerTest instance; // Статический экземпляр
 

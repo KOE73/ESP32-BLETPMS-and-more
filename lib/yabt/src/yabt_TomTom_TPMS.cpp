@@ -23,6 +23,8 @@
 #include "yabt_tpms.hpp"
 #include "yabt_TomTom_TPMS.hpp"
 
+#include <nlohmann/json.hpp>
+
 #define TAG "TPMS_TOMTOM"
 namespace yabt
 {
@@ -156,6 +158,26 @@ namespace yabt
 
         TPMSData tpmsData;
         parseTPMSData(report, tpmsData);
+
+        nlohmann::json j;
+        j["device_address"] = report.getAddr().toString();
+        j["manufacturer"] = tpmsData.manufacturerName;
+        j["sensor_number"] = tpmsData.sensorNumber;
+        j["sensor_address"] = tpmsData.sensorAddress;
+        j["pressure_kPa"] = tpmsData.pressure_kPa;
+        j["pressure_mbar"] = tpmsData.pressure_mbar;
+        j["pressure_Psi"] = tpmsData.pressure_Psi;
+        j["pressure_Bar"] = tpmsData.pressure_Bar;
+        j["pressure_KgCm2"] = tpmsData.pressure_KgCm2;
+        j["pressure_Atm"] = tpmsData.pressure_Atm;
+
+        j["temperature_C"] = tpmsData.temperatureC;
+        j["temperature_F"] = tpmsData.temperatureF;
+        j["battery_percentage"] = tpmsData.batteryPercentage;
+        j["alarm_flag"] = tpmsData.alarmFlag;
+
+        std::string jsonString = j.dump();
+        ESP_LOGI(TAG, "JSON Data: %s", jsonString.c_str());
 
         // Отправка
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(

@@ -22,6 +22,7 @@
 #include "my_include.h"
 #endif
 
+
 /*====================
    COLOR SETTINGS
  *====================*/
@@ -467,7 +468,8 @@
 #define LV_ATTRIBUTE_EXTERN_DATA
 
 /* Use `float` as `lv_value_precise_t` */
-#define LV_USE_FLOAT            0
+// KOE 0->1
+#define LV_USE_FLOAT            1
 
 /*Enable matrix support
  *Requires `LV_USE_FLOAT = 1`*/
@@ -1126,3 +1128,5 @@
 #endif /*LV_CONF_H*/
 
 #endif /*End of "Content enable"*/
+
+

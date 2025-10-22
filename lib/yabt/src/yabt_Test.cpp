@@ -20,6 +20,8 @@
 
 #include "yabt_Test.hpp"
 
+#include <nlohmann/json.hpp>
+
 namespace yabt
 {
     // Определение статического экземпляра (создаётся автоматически)
@@ -40,6 +42,8 @@ namespace yabt
 
     void BtDeviceRecognizerTest::SendEvent(esp_event_loop_handle_t yabt_loop, const BleGapExtAdvReport &report)
     {
+        nlohmann::json j;
+        j["device_address"] = report.getAddr().toString();
         TPMSData tpmsData;
         strncpy(tpmsData.manufacturerName, "TESTtest", TPMSDATA_MANUFACTERENAME_LENGTH);
 

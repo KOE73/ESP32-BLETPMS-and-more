@@ -80,7 +80,11 @@
         "ratio": "cpp",
         "fstream": "cpp",
         "semaphore": "cpp",
-        "stop_token": "cpp"
+        "stop_token": "cpp",
+        "any": "cpp",
+        "codecvt": "cpp",
+        "forward_list": "cpp",
+        "valarray": "cpp"
     },
     "editor.minimap.scale": 2,
     "editor.minimap.showSlider": "always",

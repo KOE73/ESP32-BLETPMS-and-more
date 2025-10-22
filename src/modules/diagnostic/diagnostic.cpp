@@ -139,7 +139,7 @@ static void diagnostics_task(void *param)
     {
         print_task_diagnostics();
 
-        vTaskDelay(pdMS_TO_TICKS(5000)); // Вывод каждые 5 секунд
+        vTaskDelay(pdMS_TO_TICKS(30000)); // Вывод каждые 30 секунд
     }
 }
 
