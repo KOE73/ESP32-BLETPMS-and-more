@@ -6,6 +6,8 @@
 //#include "esp_bt_main.h"
 #include "esp_gap_ble_api.h"
 
+#include "yabt_utils.hpp"
+
 
 /**
  * @brief Processes an extended advertising report.
@@ -27,7 +29,7 @@
  *
  * @param report The extended advertising report to process.
  */
-void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report);
+void process_ext_adv_report(const yabt::BleGapExtAdvReport &report);
 
 /**
  * @brief Handles BLE GAP events and logs advertising data.

@@ -21,7 +21,12 @@
 
 #include <nlohmann/json.hpp>
 
+#include "njsonex.hpp"
+
 #define TAG "SMARTTAG"
+
+__attribute__((weak)) esp_event_loop_handle_t CBOR_loop = NULL;
+__attribute__((weak)) esp_event_base_t CBOR_EVENT = NULL;
 
 namespace yabt
 {
@@ -147,6 +152,27 @@ namespace yabt
         std::string jsonStr = j.dump();
         ESP_LOGI(TAG, "JSON Data: %s", jsonStr.c_str());
 
+        if (CBOR_loop != NULL)
+        {
+            std::array<std::byte, 200> stack_buffer;                                                            // 1. Буфер на стеке (очень маленький, чтобы гарантированно его переполнить)
+            std::pmr::memory_resource *heap_resource = std::pmr::new_delete_resource();                         // 2. Ресурс для кучи (стандартный системный аллокатор)
+            std::pmr::monotonic_buffer_resource pool2{stack_buffer.data(), stack_buffer.size(), heap_resource}; // 4. Монотонный буфер, который сначала использует стек,а при переполнении обращается к нашему логирующему ресурсу
+            // LoggingMemoryResource logging_heap_resource(heap_resource);                 // 3. Обертка, которая логирует и использует кучу
+            // std::pmr::monotonic_buffer_resource pool2{stack_buffer.data(), stack_buffer.size(), &logging_heap_resource}; // 4. Монотонный буфер, который сначала использует стек,а при переполнении обращается к нашему логирующему ресурсу
+
+            PoolVectorPmr out2(&pool2);
+            out2.reserve(200); // зарезервировать место заранее
+            nlohmann::json::to_cbor(j, out2);
+            ESP_LOGI(TAG, "CBOR EI-T5300 size with PMR: %u bytes", out2.size());
+            ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(
+                CBOR_loop,
+                CBOR_EVENT,
+                out2.size(),
+                out2.data(),
+                out2.size(),
+                pdMS_TO_TICKS(3000)));
+        }
+
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(
             yabt_loop,
             YABT_EVENT,
@@ -154,6 +180,8 @@ namespace yabt
             &st,
             sizeof(SmartTagFD5AData),
             pdMS_TO_TICKS(3000)));
+
+        ESP_LOGI(TAG, "CBOR END !@!!!");
     }
 
 } // namespace yabt

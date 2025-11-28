@@ -28,6 +28,11 @@
 
 // const char *YABT_EVENT = "YABT_EVENT";
 ESP_EVENT_DEFINE_BASE(YABT_EVENT);
+
+
+__attribute__((weak)) esp_event_loop_handle_t CBOR_loop = NULL;
+__attribute__((weak)) esp_event_base_t CBOR_EVENT = NULL;
+
 namespace yabt
 {
 

@@ -121,7 +121,7 @@ namespace lcd
         // Schedule GUI update on LVGL thread
 
         lvgl::post([this, payload]()
-                   {
+             {
                 //std::unique_ptr<json> jptr(static_cast<json*>(param)); // auto-delete at the end
                 //const json &j = *jptr;
                 //std::unique_ptr<std::vector<uint8_t>> buf(static_cast<std::vector<uint8_t>*>(param));
@@ -136,14 +136,15 @@ namespace lcd
                 lv_label_set_text_fmt(pressureLabel, "%.1f", psi);
                 lv_label_set_text_fmt(temperatureLabel, "%.1f °C", temp);
 
-                lv_obj_invalidate(pressureLabel);
-                lv_obj_invalidate(temperatureLabel);
+                //lv_obj_invalidate(pressureLabel);
+                //lv_obj_invalidate(temperatureLabel);
 
-                lv_obj_mark_layout_as_dirty(pressureLabel);
-                lv_obj_mark_layout_as_dirty(temperatureLabel);
-                lv_refr_now(NULL);
+                //lv_obj_mark_layout_as_dirty(pressureLabel);
+                //lv_obj_mark_layout_as_dirty(temperatureLabel);
+                //lv_refr_now(NULL);
 
-                ESP_LOGI("LCD----------", "Labels updated via CBOR/JSON payload"); });
+                ESP_LOGI("LCD----------", "Labels updated via CBOR/JSON payload");
+             });
 
         ESP_LOGI("LCD----------", "! Chenged label");
     }

@@ -18,11 +18,62 @@
 // static const char *TAG_BLE = "BLE";
 static const char *TAG_BLE_CALLBACK = "BLE_CALLBACK";
 
+void process_ext_adv_report(const yabt::BleGapExtAdvReport &report)
+{
+
+    return;
+
+    ESP_LOGI(TAG_BLE_CALLBACK, "───────────────────────────────────────────────");
+    ESP_LOGI(TAG_BLE_CALLBACK, "📡 Extended Advertising Report");
+    ESP_LOGI(TAG_BLE_CALLBACK, "───────────────────────────────────────────────");
+
+    // === Базовая информация ===
+    ESP_LOGI(TAG_BLE_CALLBACK, "Event Type:   %s", report.getEventTypeStr().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "Address:      %s", report.getAddr().toString().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "Addr Type:    %s", report.getAddrTypeStr().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "Primary PHY:  %s", report.getPrimaryPhyStr().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "Secondary PHY:%s", report.getSecondlyPhyStr().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "RSSI:         %s dBm", report.getRssiStr().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "Data Status:  %s", report.getDataStatusStr().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "SID:          %s", report.getSidStr().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "Tx Power:     %d dBm", report.getTxPowerStr().c_str());
+
+    // === Дополнительные поля ===
+    ESP_LOGI(TAG_BLE_CALLBACK, "Periodic Adv Interval: %s", report.getPerAdvIntervalStr().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "Direct Address:        %s", report.getDirAddrStr().c_str());
+
+    // === Имя устройства ===
+    if (auto name = report.getCompleteLocalName())
+        ESP_LOGI(TAG_BLE_CALLBACK, "Device Name:  %s", name.value().c_str());
+
+    // === UUID’ы (16/32/128-bit) ===
+    ESP_LOGI(TAG_BLE_CALLBACK, "16-bit UUIDs: %s", report.get16BitServiceUUIDsAsString().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "32-bit UUIDs: %s", report.get32BitServiceUUIDsAsString().c_str());
+    ESP_LOGI(TAG_BLE_CALLBACK, "128-bit UUIDs:%s", report.get128BitServiceUUIDsAsString().c_str());
+
+    // === Производитель ===
+    if (auto manufacturerId = report.getManufacturerId())
+        ESP_LOGI(TAG_BLE_CALLBACK, "Manufacturer Id: 0x%04X", manufacturerId.value());
+
+    if (auto manufacturerName = report.getManufacturerName())
+        ESP_LOGI(TAG_BLE_CALLBACK, "Manufacturer Name: %s", manufacturerName.value().c_str());
+
+    if (auto manufacturerData = report.getManufacturerDataAsString())
+        ESP_LOGI(TAG_BLE_CALLBACK, "Manufacturer Data: %s", manufacturerData.value().c_str());
+
+    if (auto flags = report.getActiveFlagsDescription())
+    {
+        ESP_LOGI(TAG_BLE_CALLBACK, "Flags:        0x%02X (%s)", flags.value().c_str());
+    }
+
+    ESP_LOGI(TAG_BLE_CALLBACK, "───────────────────────────────────────────────");
+}
+
 // This function processes an extended advertising report (esp_ble_gap_ext_adv_report_t)
 // It formats the fields of the report into human-readable strings and logs them for debugging.
 // The function extracts details such as event type, address, PHY types, RSSI, advertising data, etc.
 // and outputs them using ESP_LOGI for easier analysis of BLE advertising packets.
-void process_ext_adv_report(const esp_ble_gap_ext_adv_report_t &report)
+void process_ext_adv_report11111(const esp_ble_gap_ext_adv_report_t &report)
 {
     // Format each field of the extended advertising report into a human-readable string
     std::string event_type_str = std::format("Event Type: 0x{:02x}", report.event_type);
@@ -294,5 +345,3 @@ std::string const process_adv_data(const uint8_t *data, uint8_t data_len, esp_bl
         return result;
     }
 }
-
-

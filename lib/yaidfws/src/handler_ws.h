@@ -31,8 +31,6 @@ namespace yaidfws
         void init();
 
     public:
-
-    
         AsyncWebHandlerWSSource(std::string url);
         AsyncWebHandlerWSSource(IHandlerContainer &handlerContainer, std::string url);
         ~AsyncWebHandlerWSSource() override;
@@ -41,9 +39,9 @@ namespace yaidfws
 
         void handleRequest(AsyncWebServerRequest *request) override;
 
-        /// @brief 
+        /// @brief
         ///     Cannot call client->send()
-        /// @param cb 
+        /// @param cb
         void onConnect(connect_handler_t cb) { this->on_connect_ = std::move(cb); }
 
         /// @brief Send message to all event sessions
@@ -52,6 +50,8 @@ namespace yaidfws
         /// @param id
         /// @param reconnect
         void send(const char *message, uint32_t id = 0, uint32_t reconnect = 0) const;
+
+        void send_binary(const uint8_t *message, size_t len, uint32_t reconnect = 0) const;
 
         size_t count() const { return this->_ws_responses.size(); }
     };
@@ -70,6 +70,7 @@ namespace yaidfws
 
     public:
         void send(const char *message, uint32_t id = 0, uint32_t reconnect = 0);
+        void send_binary(const uint8_t *message, size_t len, uint32_t reconnect = 0);
     };
 
 } // namespace yaidfws_idf

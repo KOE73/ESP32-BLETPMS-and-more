@@ -22,7 +22,8 @@ namespace yaidfws
 
 #define CRLF_STR "\r\n"
 #define CRLF_LEN (sizeof(CRLF_STR) - 1)
-#pragma region HandlerEventSource
+
+#pragma region AsyncWebHandlerWSSource
 
     // typedef struct
     //{
@@ -139,6 +140,22 @@ namespace yaidfws
         }
     }
 
+    void AsyncWebHandlerWSSource::send_binary(const uint8_t *message, size_t len, uint32_t reconnect) const
+    {
+        ESP_LOGI(TAG_EVENT_HANDLER, "AsyncWebHandlerWSSource::send_binary 0 sessions.count %i %i", this->_ws_responses.size(), len);
+
+        if (xSemaphoreTake(_sendMutex, portMAX_DELAY))
+        {
+            ESP_LOGI(TAG_EVENT_HANDLER, "AsyncWebHandlerWSSource::send_binary 1 sessions.count %i %i", this->_ws_responses.size(), len);
+
+            for (auto *ses : this->_ws_responses)
+            {
+                ses->send_binary(message, len, reconnect);
+            }
+            xSemaphoreGive(_sendMutex);
+        }
+    }
+
 #pragma endregion
 
 #pragma region AsyncWSSourceResponse
@@ -159,7 +176,7 @@ namespace yaidfws
             this->_httpd_handle = httpd_req->handle;
             this->_sockfd = httpd_req_to_sockfd(httpd_req);
 
-            ESP_LOGI(TAG_RESPONSE, "AsyncWSSourceResponse HTTP_GET sockfd = %i", _sockfd);
+            ESP_LOGI(TAG_RESPONSE, "AsyncWSSourceResponse HTTP_GET sockfd = %i %i", _sockfd);
 
             // return ESP_OK;
         }
@@ -205,6 +222,7 @@ namespace yaidfws
         free(args->data);
         free(args);
     }
+
     void AsyncWSSourceResponse::send(const char *message, uint32_t id, uint32_t reconnect)
     {
         if (this->_sockfd == 0)
@@ -226,16 +244,28 @@ namespace yaidfws
         // ws_res.payload = (uint8_t *)message;
         ws_res.len = strlen(message);
 
-        ws_res.payload = (uint8_t *)malloc(ws_res.len+1);
+        ws_res.payload = (uint8_t *)heap_caps_malloc(ws_res.len + 1, MALLOC_CAP_SPIRAM);
         strcpy((char *)ws_res.payload, message);
 
         // auto err = httpd_ws_send_data(this->_httpd_handle, this->_sockfd, &ws_res);
 
+        ESP_LOGI(TAG_RESPONSE, "AsyncWSSourceResponse::send message='%s' len=%i", message, ws_res.len);
+
         // Пример отправки через сокет (низкоуровневый подход)
-        httpd_ws_send_data_async(_httpd_handle, _sockfd, &ws_res, [](esp_err_t err, int socket, void *arg)
-                                 { ESP_LOGI(TAG_RESPONSE, "Async WS err:%d", err); 
-                                free(arg);
-                                ESP_LOGI(TAG_RESPONSE, "Async WS Free"); }, ws_res.payload);
+        esp_err_t err = httpd_ws_send_data_async(
+            _httpd_handle,
+            _sockfd, &ws_res,
+            [](esp_err_t err, int socket, void *arg)
+            {   ESP_LOGI(TAG_RESPONSE, "HTTPD_WS_TYPE_TEXT Async WS err:%d", err); 
+                free(arg);
+                ESP_LOGI(TAG_RESPONSE, "HTTPD_WS_TYPE_TEXT Async WS Free"); },
+            ws_res.payload);
+
+        if (err != ESP_OK)
+        {
+            heap_caps_free(ws_res.payload);
+            ESP_LOGI(TAG_RESPONSE, "HTTPD_WS_TYPE_TEXT Async WS Free Err");
+        }
 
         return;
 
@@ -261,6 +291,60 @@ namespace yaidfws
         //   ESP_LOGI(TAG_RESPONSE, "httpd_queue_work (((((((((((((((((((((");
 
         //   // ESP_LOGI(TAG_RESPONSE, "httpd_ws_send_data %i", err);
+    }
+
+    void AsyncWSSourceResponse::send_binary(const uint8_t *message, size_t len, uint32_t reconnect)
+    {
+        ESP_LOGI(TAG_RESPONSE, "AsyncWSSourceResponse::send_binary 0 len=%i", len);
+
+        if (this->_sockfd == 0)
+        {
+            ESP_LOGI(TAG_RESPONSE, "AsyncWSSourceResponse::send_binary no sockfd");
+            return;
+        }
+
+        ESP_LOGI(TAG_RESPONSE, "AsyncWSSourceResponse::send_binary 1 len=%i", len);
+
+        if (!message)
+        {
+            ESP_LOGI(TAG_RESPONSE, "AsyncWSSourceResponse::send_binary no message");
+            return;
+        }
+
+        ESP_LOGI(TAG_RESPONSE, "AsyncWSSourceResponse::send_binary 2 len=%i", len);
+
+        httpd_ws_frame_t ws_res;
+        memset(&ws_res, 0, sizeof(httpd_ws_frame_t));
+        ws_res.type = HTTPD_WS_TYPE_BINARY;
+        ws_res.final = 1;
+        ws_res.fragmented = 0;
+        ws_res.len = len;
+
+        ws_res.payload = (uint8_t *)heap_caps_malloc(len, MALLOC_CAP_SPIRAM);
+        if (ws_res.payload == NULL)
+        {
+            return; // ESP_ERR_NO_MEM;
+        }
+        memcpy(ws_res.payload, message, len);
+
+        // auto err = httpd_ws_send_data(this->_httpd_handle, this->_sockfd, &ws_res);
+
+        ESP_LOGI(TAG_RESPONSE, "AsyncWSSourceResponse::send_binary len=%i", len);
+
+        // Пример отправки через сокет (низкоуровневый подход)
+        esp_err_t err = httpd_ws_send_data_async(_httpd_handle, _sockfd, &ws_res, [](esp_err_t err, int socket, void *arg)
+                                                 { 
+                                    ESP_LOGI(TAG_RESPONSE, "HTTPD_WS_TYPE_BINARY Async WS err:%d", err); 
+                                    free(arg);
+                                    ESP_LOGI(TAG_RESPONSE, "HTTPD_WS_TYPE_BINARY Async WS Free"); }, ws_res.payload);
+
+        if (err != ESP_OK)
+        {
+            heap_caps_free(ws_res.payload);
+            ESP_LOGI(TAG_RESPONSE, "HTTPD_WS_TYPE_BINARY Async WS Free Err");
+        }
+
+        return;
     }
 
 #pragma endregion

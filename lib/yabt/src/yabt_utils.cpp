@@ -101,7 +101,7 @@ namespace yabt
         return oss.str();
     }
 
-#pragma region BleGapExtAdvReport
+#pragma region -BleGapExtAdvReport
 
     BleGapExtAdvReport::BleGapExtAdvReport(const esp_ble_gap_ext_adv_report_t *report)
         : raw_report(report), addr_(report->addr)
@@ -176,21 +176,6 @@ namespace yabt
     template std::vector<uint16_t> BleGapExtAdvReport::getUUIDs<uint16_t>(esp_ble_adv_data_type type) const;
     template std::vector<uint32_t> BleGapExtAdvReport::getUUIDs<uint32_t>(esp_ble_adv_data_type type) const;
     template std::vector<std::array<uint8_t, 16>> BleGapExtAdvReport::getUUIDs<std::array<uint8_t, 16>>(esp_ble_adv_data_type type) const;
-
-    void d()
-    {
-        std::vector<std::string> words = {"apple", "banana", "cherry", "lada"};
-        auto joined = std::views::join_with(words, ", ");
-        // auto joined = std::views::join(words);
-
-        std::ostringstream oss;
-        for (char c : joined)
-        {
-            oss.put(c); // Используем put() вместо += (эффективнее)
-        }
-
-        std::string result = oss.str();
-    }
 
     // Функция объединения UUID через запятую
     template <typename T>
@@ -289,6 +274,7 @@ namespace yabt
             return "Unknown(" + std::to_string(phy) + ")";
         }
     }
+    
 
     std::string BleGapExtAdvReport::getEventTypeStr() const
     {
@@ -351,6 +337,22 @@ namespace yabt
             return "Unknown(" + std::to_string(raw_report->data_status) + ")";
         }
     }
+
 #pragma endregion
+
+    void d()
+    {
+        std::vector<std::string> words = {"apple", "banana", "cherry", "lada"};
+        auto joined = std::views::join_with(words, ", ");
+        // auto joined = std::views::join(words);
+
+        std::ostringstream oss;
+        for (char c : joined)
+        {
+            oss.put(c); // Используем put() вместо += (эффективнее)
+        }
+
+        std::string result = oss.str();
+    }
 
 } // namespace yabt

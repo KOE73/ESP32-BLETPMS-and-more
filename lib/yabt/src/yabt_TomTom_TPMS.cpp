@@ -25,6 +25,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "njsonex.hpp"
+
 #define TAG "TPMS_TOMTOM"
 namespace yabt
 {
@@ -154,7 +156,6 @@ namespace yabt
 
     void BtDeviceRecognizerTomTomTPMS::SendEvent(esp_event_loop_handle_t yabt_loop, const BleGapExtAdvReport &report)
     {
-        // ESP_LOGI("TAG", "PreSend YABT_EVENT_TPMS");
 
         TPMSData tpmsData;
         parseTPMSData(report, tpmsData);
@@ -178,6 +179,16 @@ namespace yabt
 
         std::string jsonString = j.dump();
         ESP_LOGI(TAG, "JSON Data: %s", jsonString.c_str());
+
+
+ 
+        std::array<std::byte, 128> stack_buffer;                                                                     // 1. Буфер на стеке (очень маленький, чтобы гарантированно его переполнить)
+        std::pmr::memory_resource *heap_resource = std::pmr::new_delete_resource();                                  // 2. Ресурс для кучи (стандартный системный аллокатор)
+        LoggingMemoryResource logging_heap_resource(heap_resource);                                                  // 3. Наша обертка, которая логирует и использует кучу
+        std::pmr::monotonic_buffer_resource pool2{stack_buffer.data(), stack_buffer.size(), &logging_heap_resource}; // 4. Монотонный буфер, который сначала использует стек,а при переполнении обращается к нашему логирующему ресурсу
+        PoolVectorPmr out2( &pool2);
+        nlohmann::json::to_cbor(j, out2);
+        ESP_LOGI(TAG, "CBOR size with PMR: %u bytes", out2.size());
 
         // Отправка
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(

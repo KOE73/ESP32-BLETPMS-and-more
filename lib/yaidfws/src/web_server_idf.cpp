@@ -7,7 +7,7 @@
 
 #include "esp_tls_crypto.h"
 
-//#include "utils.h"
+// #include "utils.h"
 #include "web_server_idf.h"
 
 static const char *TAG_WEB2_SERVER = "WEB2_SERVER";
@@ -52,9 +52,21 @@ namespace yaidfws
     if (httpd_start(&this->_httpd_handle, &config) == ESP_OK)
     {
       ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "Web2 Server Started" LOG_ANSI_COLOR_RESET);
+      // TODO WS
+      //       const httpd_uri_t ws_handler = {
+      //           .uri = "/ws",
+      //           .method = HTTP_GET,
+      //           .handler = IDFWebServer::request_get_handler, // wrapper
+      //           .user_ctx = this,
+      // #ifdef CONFIG_HTTPD_WS_SUPPORT
+      //           .is_websocket = true,
+      //           .handle_ws_control_frames = true
+      // #endif
+      //       };
+      //       httpd_register_uri_handler(this->_httpd_handle, &ws_handler);
 
       const httpd_uri_t handler_get = {
-          .uri = "",
+          .uri = "/*",
           .method = HTTP_GET,
           .handler = IDFWebServer::request_get_handler,
           .user_ctx = this,
@@ -65,7 +77,7 @@ namespace yaidfws
       httpd_register_uri_handler(this->_httpd_handle, &handler_get);
 
       const httpd_uri_t handler_post = {
-          .uri = "",
+          .uri = "/*",
           .method = HTTP_POST,
           .handler = IDFWebServer::request_post_handler,
           .user_ctx = this,
@@ -73,7 +85,7 @@ namespace yaidfws
       httpd_register_uri_handler(this->_httpd_handle, &handler_post);
 
       const httpd_uri_t handler_options = {
-          .uri = "",
+          .uri = "/*",
           .method = HTTP_OPTIONS,
           .handler = IDFWebServer::request_get_handler,
           .user_ctx = this,
@@ -81,7 +93,6 @@ namespace yaidfws
       httpd_register_uri_handler(this->_httpd_handle, &handler_options);
 
       ESP_LOGI(TAG_WEB2_SERVER, LOG_WEB2_COLOR "Web2 Server Register Handlers" LOG_ANSI_COLOR_RESET);
-
     }
   }
 

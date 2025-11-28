@@ -30,6 +30,7 @@ namespace yabt
 {
     struct BtDeviceAddrSpan;
 
+#pragma region BtDeviceAddr
     // Lightweight wrapper around a 6-byte Bluetooth device address.
     //
     // Purpose:
@@ -63,6 +64,10 @@ namespace yabt
         std::string toString() const;
     };
 
+#pragma endregion BtDeviceAddr
+
+#pragma region BtDeviceAddrSpan
+
     // Lightweight non-owning view of a 6-byte Bluetooth device address.
     //
     // Purpose:
@@ -89,6 +94,10 @@ namespace yabt
 
         std::string toString() const;
     };
+
+#pragma endregion BtDeviceAddrSpan
+
+#pragma region -BleGapExtAdvReport
 
     /// @brief Все данные из esp_ble_gap_ext_adv_report_t в т.ч. полученные из process_adv_data.
     ///      Формируется из esp_ble_gap_ext_adv_report_t.
@@ -628,8 +637,20 @@ namespace yabt
             return std::nullopt;
         }
 
-#pragma region TODO
+        std::optional<std::string> getManufacturerDataAsString() const
+        {
+            auto data = getManufacturerData();
+            if (!data.has_value() || data->size() <= 2)
+                return std::nullopt;
 
+            std::ostringstream oss;
+            oss << std::hex << std::uppercase << std::setfill('0');
+            for (size_t i = 2; i < data->size(); ++i)
+                oss << std::setw(2) << static_cast<unsigned>(data->data()[i]);
+            return oss.str();
+        }
+
+#pragma region TODO
 
         //  @brief Extracts payload from BLE Service Data (AD type 0x16).
         //
@@ -710,5 +731,6 @@ namespace yabt
 
 #pragma endregion
     };
+#pragma endregion
 
 } // namespace yabt

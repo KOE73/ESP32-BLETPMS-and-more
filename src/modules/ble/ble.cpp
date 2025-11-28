@@ -35,10 +35,11 @@ static void connectHR();
 // Pointer to User defined scan_params data structure. This memory space can not be freed until callback of set_scan_params
 esp_ble_scan_params_t scan_params = {
     .scan_type = BLE_SCAN_TYPE_PASSIVE,              /* BLE_SCAN_TYPE_PASSIVE BLE_SCAN_TYPE_ACTIVE */
+                                                     /* ELM327 need BLE_SCAN_TYPE_ACTIVE ? */
     .own_addr_type = BLE_ADDR_TYPE_PUBLIC,           /* BLE_ADDR_TYPE_PUBLIC BLE_ADDR_TYPE_RANDOM BLE_ADDR_TYPE_RPA_PUBLIC BLE_ADDR_TYPE_RPA_RANDOM */
     .scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL, /* BLE_SCAN_FILTER_ALLOW_ALL BLE_SCAN_FILTER_ALLOW_ONLY_WLST BLE_SCAN_FILTER_ALLOW_UND_RPA_DIR BLE_SCAN_FILTER_ALLOW_WLIST_RPA_DIR */
-    .scan_interval = 0x100,                          /*  */
-    .scan_window = 0x100,                            /*  */
+    .scan_interval = 0x80,                          /*  */
+    .scan_window = 0x40,                             /* duty cycle < 100% for WiFI work (0x100, 0xE0) */
     .scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE     /* BLE_SCAN_DUPLICATE_DISABLE BLE_SCAN_DUPLICATE_ENABLE (BLE5)BLE_SCAN_DUPLICATE_ENABLE_RESET*/
 };
 
@@ -46,9 +47,10 @@ esp_ble_ext_scan_params_t ext_scan_params = {
     .own_addr_type = BLE_ADDR_TYPE_PUBLIC,                                                 /* BLE_ADDR_TYPE_PUBLIC BLE_ADDR_TYPE_RANDOM BLE_ADDR_TYPE_RPA_PUBLIC BLE_ADDR_TYPE_RPA_RANDOM */
     .filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,                                            /* BLE_SCAN_FILTER_ALLOW_ALL BLE_SCAN_FILTER_ALLOW_ONLY_WLST BLE_SCAN_FILTER_ALLOW_UND_RPA_DIR BLE_SCAN_FILTER_ALLOW_WLIST_RPA_DIR */
     .scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE,                                          /* BLE_SCAN_DUPLICATE_DISABLE BLE_SCAN_DUPLICATE_ENABLE (BLE5)BLE_SCAN_DUPLICATE_ENABLE_RESET*/
-    .cfg_mask = ESP_BLE_GAP_EXT_SCAN_CFG_UNCODE_MASK | ESP_BLE_GAP_EXT_SCAN_CFG_CODE_MASK, /* Scan Advertisements on the LE1M PHY | on the LE coded PHY */
-    .uncoded_cfg = {BLE_SCAN_TYPE_ACTIVE, 0x100, 0x100},
-    .coded_cfg = {BLE_SCAN_TYPE_ACTIVE, 0x100, 0x100},
+    .cfg_mask = ESP_BLE_GAP_EXT_SCAN_CFG_UNCODE_MASK /*| ESP_BLE_GAP_EXT_SCAN_CFG_CODE_MASK*/, /* Scan Advertisements on the LE1M PHY | on the LE coded PHY */
+    .uncoded_cfg = {BLE_SCAN_TYPE_PASSIVE, 0x80, 0x70},                                   /* duty cycle < 100% for WiFI work (0x100, 0xE0)*/
+    .coded_cfg = {BLE_SCAN_TYPE_PASSIVE, 0x80, 0x70},                                     /* duty cycle < 100% for WiFI work (0x100, 0xE0)*/
+                                                                                           /* ELM327 need BLE_SCAN_TYPE_ACTIVE ? */
 };
 
 #define GATT_PROFILE_APP_ID 0
@@ -70,12 +72,93 @@ static uint16_t hr_handle = 0; // Дескриптор характеристи�
 // https://github.com/ra6070/BLE-TPMS/blob/master/tpms.ino
 static esp_bd_addr_t target_addr_TPMS = {0x82, 0xea, 0xca, 0x30, 0x07, 0x27};
 
-// ====== BLE FUNCTIONS ======
+#pragma region -GAP
 
+#pragma region ble_gap_callback_legacy
+
+// ============================================================================
+// 🧭 GAP EVENT FLOW — BLE 4.2 Scanning & Discovery Lifecycle
+// ----------------------------------------------------------------------------
+// This callback (ble_gap_callback_legacy) handles all GAP events for
+// **classic BLE scanning** (non-extended). It covers the full device
+// discovery flow — from setting scan parameters to detecting nearby devices.
+//
+// 🔄 Typical Flow:
+//  1️⃣ SET SCAN PARAMETERS
+//     - esp_ble_gap_set_scan_params(&scan_params);
+//         ↓
+//     → ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT
+//         ⚙️ Indicates the controller accepted scan configuration
+//         ✅ Next step → start scanning via esp_ble_gap_start_scanning(duration)
+//
+//  2️⃣ START SCANNING
+//     - esp_ble_gap_start_scanning(duration_seconds);
+//         ↓
+//     → ESP_GAP_BLE_SCAN_START_COMPLETE_EVT
+//         ⚙️ Confirms scanning has actually started
+//         ⚠️ If failed → check controller state or scan params
+//
+//  3️⃣ RECEIVE ADVERTISING PACKETS
+//     - While scanning is active, multiple:
+//         → ESP_GAP_BLE_SCAN_RESULT_EVT
+//             ⚙️ Each event = one advertising or scan-response packet
+//             💡 Parse param->scan_rst to identify nearby devices
+//             🔍 Common fields:
+//                 • bda          → device MAC address
+//                 • rssi         → signal strength
+//                 • ble_adv[]    → raw advertising data
+//             ✅ Use this stage to filter devices by name, manufacturer, etc.
+//
+//  4️⃣ SCAN COMPLETED
+//     - Happens automatically (after timeout) or manually:
+//         esp_ble_gap_stop_scanning();
+//             ↓
+//         → ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT
+//             ⚙️ Confirms scanning stopped successfully
+//             💡 Typical next step → initiate connection to chosen device
+//
+// ----------------------------------------------------------------------------
+// ⚙️ Optional / Related Events:
+// - ESP_GAP_BLE_ADV_DATA_SET_COMPLETE_EVT → when this device sets up advertising
+// - ESP_GAP_BLE_AUTH_CMPL_EVT / KEY_EVT   → appear if pairing or bonding enabled
+// - ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT    → after connection, link parameters change
+//
+// 💡 NOTES:
+// - This callback only covers *GAP discovery* (advertising & scanning).
+// - All *GATT connection* events (connect, read, write, notify) are handled
+//   separately in `esp_gattc_callback`.
+// - In BLE 5.0, extended scanning uses ble_gap_callback_ext() with
+//   ESP_GAP_BLE_EXT_* events (same logic, richer data).
+//
+// ============================================================================
 static bool ble_gap_callback_legacy(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
     switch (event)
     {
+        // ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
+        // 🔹 Triggered after you call esp_ble_gap_set_scan_params() or esp_ble_gap_set_ext_scan_params()
+        // 🔹 Means: "The BLE scan parameters have been successfully configured"
+        //
+        // ⚙️ Happens once the controller accepts your scan parameters (interval, window, policy, etc.)
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ Check param->scan_param_cmpl.status == ESP_BT_STATUS_SUCCESS
+        //     └─ If success → you can now start scanning using:
+        //            esp_ble_gap_start_scanning(duration_seconds);
+        //        or for BLE 5.0 extended scanning:
+        //            esp_ble_gap_start_ext_scan(duration_ms, period_ms);
+        //
+        // 🔹 Typical next step:
+        //     - Start scanning for advertising devices
+        //     - Begin discovering nearby peripherals
+        //
+        // 🔹 param->scan_param_cmpl.status gives the operation result
+        //
+        // 💡 Tip:
+        //     - This event only signals *configuration complete*, not that scanning has started.
+        //     - If you see this event but scanning doesn’t start, check your `esp_ble_gap_start_*` call timing.
+        //     - Common cause of failure: BLE controller not initialized or wrong address type.
+        //
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
         if (param->scan_param_cmpl.status == ESP_BT_STATUS_SUCCESS)
         {
@@ -90,6 +173,31 @@ static bool ble_gap_callback_legacy(esp_gap_ble_cb_event_t event, esp_ble_gap_cb
         }
         return true;
 
+        // ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
+        // 🔹 Triggered right after calling esp_ble_gap_start_scanning()
+        // 🔹 Means: "The BLE scan process has been started (or failed to start)"
+        //
+        // ⚙️ Happens once the controller acknowledges your request to begin scanning.
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ Check param->scan_start_cmpl.status == ESP_BT_STATUS_SUCCESS
+        //     └─ If success → device is now actively scanning for advertisements
+        //     └─ If failed  → check BLE state, previous scan still running, or invalid params
+        //
+        // 🔹 Typical next step:
+        //     - Wait for ESP_GAP_BLE_SCAN_RESULT_EVT events (each representing an advertising packet)
+        //     - Handle discovered devices, filter by RSSI, manufacturer data, etc.
+        //
+        // 🔹 Common causes of failure:
+        //     - Scanning already in progress
+        //     - Controller busy with another GAP operation
+        //     - Invalid scan parameters not yet applied
+        //
+        // 💡 Tip:
+        //     - You don’t need to manually restart scanning inside this event — just confirm success.
+        //     - To stop scanning later: esp_ble_gap_stop_scanning();
+        //     - Combine with ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT for a clean start/stop flow.
+        //
     case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
         if (param->scan_start_cmpl.status == ESP_BT_STATUS_SUCCESS)
         {
@@ -101,11 +209,51 @@ static bool ble_gap_callback_legacy(esp_gap_ble_cb_event_t event, esp_ble_gap_cb
         }
         return true;
 
+        // ESP_GAP_BLE_SCAN_RESULT_EVT:
+        // 🔹 Triggered whenever a BLE advertising packet or scan response is received
+        // 🔹 Means: "A nearby BLE device was detected during active or passive scanning"
+        //
+        // ⚙️ This event fires *repeatedly* — once per advertising report
+        //     Each report describes one packet (ADV_IND, ADV_SCAN_RSP, etc.)
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ The specific result type is in param->scan_rst.search_evt
+        //     └─ Use a switch on search_evt to handle different sub-events:
+        //
+        //        • ESP_GAP_SEARCH_INQ_RES_EVT → Device found (main advertising report)
+        //        • ESP_GAP_SEARCH_INQ_CMPL_EVT → Inquiry complete (scan finished)
+        //        • ESP_GAP_SEARCH_DISC_RES_EVT → Discovery result
+        //        • ESP_GAP_SEARCH_DISC_CMPL_EVT → Discovery complete
+        //        • ESP_GAP_SEARCH_SEARCH_CANCEL_CMPL_EVT → Search cancelled
+        //
+        // 🔹 Typical use:
+        //     - Parse param->scan_rst to extract data fields:
+        //         • param->scan_rst.bda → Device MAC address
+        //         • param->scan_rst.rssi → Signal strength (dBm)
+        //         • param->scan_rst.ble_adv / adv_data_len → Raw advertising payload
+        //
+        // 🔹 You can decode advertising data (AD structures) to find:
+        //     - Local name
+        //     - Manufacturer data
+        //     - Service UUIDs
+        //     - Flags, etc.
+        //
+        // 💡 Tip:
+        //     - This is the main event for device discovery and filtering logic
+        //     - Store devices in a list or map, keyed by address
+        //     - When a desired device is found, stop scanning and initiate connection
+        //
+        // Example flow:
+        //     esp_ble_gap_start_scanning(duration);
+        //         ↓
+        //     → ESP_GAP_BLE_SCAN_RESULT_EVT (fires multiple times)
+        //         ↓
+        //     → ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT (when duration ends or manually stopped)
         //
     case ESP_GAP_BLE_SCAN_RESULT_EVT:
         switch (param->scan_rst.search_evt)
         {
-
+            ////
         case ESP_GAP_SEARCH_INQ_RES_EVT: /*!< Inquiry result for a peer device. */
             ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_SEARCH_INQ_RES_EVT Device found: %02x:%02x:%02x:%02x:%02x:%02x, RSSI: %d", ESP_BD_ADDR_HEX(param->scan_rst.bda), param->scan_rst.rssi);
             ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, param->scan_rst.ble_adv, param->scan_rst.adv_data_len);
@@ -135,6 +283,40 @@ static bool ble_gap_callback_legacy(esp_gap_ble_cb_event_t event, esp_ble_gap_cb
 
         return true;
 
+        // ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
+        // 🔹 Triggered after calling esp_ble_gap_stop_scanning()
+        // 🔹 Means: "The BLE scanning process has been stopped (successfully or with an error)"
+        //
+        // ⚙️ Happens once the controller halts ongoing scanning and frees radio resources.
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ Check param->scan_stop_cmpl.status == ESP_BT_STATUS_SUCCESS
+        //     └─ If success → no more ESP_GAP_BLE_SCAN_RESULT_EVT will be triggered
+        //     └─ If failed  → check if scanning was already stopped or BLE was reset
+        //
+        // 🔹 Typical next step:
+        //     - Optionally initiate a connection to a discovered device using:
+        //           esp_ble_gattc_open(gattc_if, remote_bda, addr_type, direct);
+        //     - Or restart scanning if you are running periodic discovery.
+        //
+        // 🔹 Common causes of failure:
+        //     - Scanning was already stopped or timed out automatically
+        //     - Controller busy or not in scanning state
+        //
+        // 💡 Tip:
+        //     - Always stop scanning before starting a GATT connection.
+        //     - Use this event as a clean transition point between "scan → connect" phases.
+        //     - Extended scanning (BLE 5.0) has its own stop event: ESP_GAP_BLE_EXT_SCAN_STOP_COMPLETE_EVT.
+        //
+        // Example flow:
+        //     esp_ble_gap_start_scanning(duration);
+        //         ↓
+        //     → ESP_GAP_BLE_SCAN_RESULT_EVT (multiple times)
+        //         ↓
+        //     esp_ble_gap_stop_scanning();
+        //         ↓
+        //     → ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT
+        //
     case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
         if (param->scan_stop_cmpl.status == ESP_BT_STATUS_SUCCESS)
         {
@@ -159,21 +341,243 @@ static bool ble_gap_callback_legacy(esp_gap_ble_cb_event_t event, esp_ble_gap_cb
     default:
         return false;
     }
+
+    // ============================================================================
+    // 🧭 OTHER ESP_GAP_BLE EVENTS — Not Yet Implemented
+    // ----------------------------------------------------------------------------
+    // ✅ Recommended to Implement (useful in most real BLE apps)
+    // ----------------------------------------------------------------------------
+    // ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT:
+    // 🔹 Triggered when connection parameters (interval, latency, timeout) are updated
+    // 🔹 Useful to monitor link quality or optimize battery/performance tradeoffs
+    //
+    // ESP_GAP_BLE_AUTH_CMPL_EVT:
+    // 🔹 Triggered when BLE pairing/authentication completes
+    // 🔹 Provides peer device info and result of encryption/bonding
+    //
+    // ESP_GAP_BLE_KEY_EVT:
+    // 🔹 Key exchange event during pairing (LTK, IRK, CSRK, etc.)
+    // 🔹 Needed if you enable security or bonding
+    //
+    // ESP_GAP_BLE_PASSKEY_REQ_EVT / ESP_GAP_BLE_PASSKEY_NOTIF_EVT:
+    // 🔹 Request/display PIN for secure pairing
+    // 🔹 Needed if using ESP_LE_AUTH_REQ_SC_BOND or similar security modes
+    //
+    // ESP_GAP_BLE_REMOVE_BOND_DEV_COMPLETE_EVT:
+    // 🔹 Confirms that a bonded device has been removed from storage
+    // 🔹 Useful for managing bond list in secure applications
+    //
+    // ESP_GAP_BLE_SET_LOCAL_PRIVACY_COMPLETE_EVT:
+    // 🔹 Called when random/private address setup completes
+    // 🔹 Required if using BLE privacy (RPA addresses)
+    // ----------------------------------------------------------------------------
+    // ⚙️ Optional / Rarely Needed (advanced or niche use)
+    // ----------------------------------------------------------------------------
+    // ESP_GAP_BLE_ADV_DATA_SET_COMPLETE_EVT:
+    // 🔹 Advertising data configured (for peripheral or beacon mode)
+    //
+    // ESP_GAP_BLE_SCAN_RSP_DATA_SET_COMPLETE_EVT:
+    // 🔹 Scan response data configured (for peripheral mode)
+    //
+    // ESP_GAP_BLE_ADV_START_COMPLETE_EVT:
+    // 🔹 Advertising started (for peripheral/beacon role)
+    //
+    // ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT:
+    // 🔹 Advertising stopped
+    //
+    // ESP_GAP_BLE_SET_STATIC_RAND_ADDR_EVT:
+    // 🔹 Random static address was successfully set
+    //
+    // ESP_GAP_BLE_SET_EXT_ADV_PARAMS_COMPLETE_EVT:
+    // 🔹 Extended advertising parameters configured (BLE 5.0 peripheral)
+    //
+    // ESP_GAP_BLE_EXT_ADV_START_COMPLETE_EVT:
+    // 🔹 Extended advertising started (BLE 5.0 peripheral)
+    //
+    // ESP_GAP_BLE_EXT_ADV_STOP_COMPLETE_EVT:
+    // 🔹 Extended advertising stopped
+    //
+    // ESP_GAP_BLE_PERIODIC_ADV_REPORT_EVT:
+    // 🔹 Received periodic advertisement (BLE 5.0 feature)
+    //
+    // ESP_GAP_BLE_PERIODIC_ADV_SYNC_ESTAB_EVT / SYNC_LOST_EVT:
+    // 🔹 Periodic advertising sync established/lost (advanced BLE 5)
+    //
+    // ----------------------------------------------------------------------------
+    // 💡 Tip:
+    // You can safely ignore most "ADV_*" events unless your ESP32 acts as a
+    // peripheral, beacon, or broadcaster. For scanning/monitoring applications,
+    // the main flow is already covered by your implemented events.
+    //
+    // ============================================================================
 }
 
+#pragma endregion ble_gap_callback_legacy
+
+#pragma region ble_gap_callback_ext
+
+// ============================================================================
+// 🧭 GAP EVENT FLOW — BLE 5.0 Extended Scanning Lifecycle
+// ----------------------------------------------------------------------------
+// This callback (ble_gap_callback_ext) handles all GAP events for
+// **BLE 5.0 extended scanning and advertising**. It supports scanning
+// across multiple PHYs (1M / Coded) and richer advertising reports.
+//
+// 🔄 Typical Flow (BLE 5.0):
+//  1️⃣ SET EXTENDED SCAN PARAMETERS
+//     - esp_ble_gap_set_ext_scan_params(&ext_scan_params);
+//         ↓
+//     → ESP_GAP_BLE_SET_EXT_SCAN_PARAMS_COMPLETE_EVT
+//         ⚙️ Confirms the controller accepted extended scan configuration.
+//         ✅ Next step → start scanning via:
+//              esp_ble_gap_start_ext_scan(duration_ms, period_ms);
+//
+//  2️⃣ START EXTENDED SCANNING
+//     - esp_ble_gap_start_ext_scan(30000, 1000); // e.g. 30s duration, 1s period
+//         ↓
+//     → ESP_GAP_BLE_EXT_SCAN_START_COMPLETE_EVT
+//         ⚙️ Confirms scanning started on configured PHYs (1M, Coded, etc.)
+//         ⚠️ If failed → check controller BLE 5 support and config mask.
+//
+//  3️⃣ RECEIVE EXTENDED ADVERTISING REPORTS
+//         → ESP_GAP_BLE_EXT_ADV_REPORT_EVT
+//             ⚙️ Fired for *each* extended advertising packet detected.
+//             💡 Each param->ext_adv_report.params contains:
+//                 • addr             → advertiser address
+//                 • adv_data[]       → full advertising payload
+//                 • adv_data_len     → data length
+//                 • primary_phy / secondary_phy → PHY used
+//                 • rssi             → signal strength (dBm)
+//             ✅ Parse the report to detect known devices (via manufacturer ID,
+//                UUIDs, names, etc.).
+//
+//             🔸Typical logic:
+//                 - Decode advertising structures (AD types)
+//                 - Identify known sensors (TPMS, HRM, etc.)
+//                 - Log or trigger recognition events
+//
+//  4️⃣ STOP EXTENDED SCANNING
+//     - Manually or automatically after duration:
+//           esp_ble_gap_stop_ext_scan();
+//         ↓
+//     → ESP_GAP_BLE_EXT_SCAN_STOP_COMPLETE_EVT
+//         ⚙️ Confirms scanning stopped successfully
+//         💡 Typical next step → connect to the found device
+//
+//  5️⃣ (Optional) PERIODIC ADVERTISING
+//         → ESP_GAP_BLE_PERIODIC_ADV_REPORT_EVT
+//             ⚙️ Report from advertisers that use periodic packets (BLE 5 feature).
+//             💡 Can be used for low-power telemetry sensors or beacons.
+//
+// ----------------------------------------------------------------------------
+// ⚙️ Optional / Related Extended GAP Events:
+// - ESP_GAP_BLE_SET_EXT_ADV_PARAMS_COMPLETE_EVT → when configuring extended advertising
+// - ESP_GAP_BLE_EXT_ADV_START_COMPLETE_EVT / STOP_COMPLETE_EVT → when this device advertises
+// - ESP_GAP_BLE_PERIODIC_ADV_SYNC_ESTAB_EVT / SYNC_LOST_EVT → periodic adv sync control
+//
+// 💡 NOTES:
+// - Extended scanning allows simultaneous reception on 1M and Coded PHYs.
+// - Advertising data may exceed the 31-byte limit of BLE 4.2 packets.
+// - The logic mirrors legacy scanning, but uses richer data structures.
+// - All *connection* logic still goes through `esp_gattc_callback`.
+//
+// ============================================================================
 static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
     switch (event)
     {
+    // ESP_GAP_BLE_SET_EXT_SCAN_PARAMS_COMPLETE_EVT:
+    // 🔹 Triggered after calling esp_ble_gap_set_ext_scan_params()
+    // 🔹 Means: "The controller has successfully configured extended scan parameters"
+    //
+    // ⚙️ This event confirms that BLE 5.0 scanning parameters (PHYs, interval, window,
+    //    filter policy, duplicate filtering, etc.) were accepted by the controller.
+    //
+    // ⚠️ IMPORTANT:
+    //     └─ Check param->set_ext_scan_params.status == ESP_BT_STATUS_SUCCESS
+    //     └─ If success → you can safely start scanning via:
+    //            esp_ble_gap_start_ext_scan(duration_ms, period_ms);
+    //     └─ If failed  → check your ext_scan_params values or BLE 5.0 support in firmware
+    //
+    // 🔹 Typical next step:
+    //     - Start scanning for extended advertising reports:
+    //            esp_ble_gap_start_ext_scan(30000, 1000);
+    //     - Or run indefinitely (duration = 0) for continuous discovery.
+    //
+    // 🔹 Common causes of failure:
+    //     - Invalid combination of PHYs or cfg_mask
+    //     - BLE controller not initialized or busy
+    //     - BLE 4.2-only chip/firmware (no BLE5 support)
+    //
+    // 💡 Tip:
+    //     - Extended scanning enables simultaneous reception on 1M + Coded PHYs.
+    //     - Use `ESP_BLE_GAP_EXT_SCAN_CFG_UNCODE_MASK` / `CODE_MASK` to control PHYs.
+    //     - This event only means parameters are accepted — scanning itself begins
+    //       after the next event ESP_GAP_BLE_EXT_SCAN_START_COMPLETE_EVT.
+    //
+    // Example flow:
+    //     esp_ble_gap_set_ext_scan_params(&ext_scan_params);
+    //         ↓
+    //     → ESP_GAP_BLE_SET_EXT_SCAN_PARAMS_COMPLETE_EVT
+    //         ↓
+    //     esp_ble_gap_start_ext_scan(duration, period);
+    //         ↓
+    //     → ESP_GAP_BLE_EXT_SCAN_START_COMPLETE_EVT
+    //
     case ESP_GAP_BLE_SET_EXT_SCAN_PARAMS_COMPLETE_EVT:
         if (param->set_ext_scan_params.status == ESP_BT_STATUS_SUCCESS)
         {
             ESP_LOGI(TAG_BLE_CALLBACK, "Extended scan params set, starting scan...");
-            esp_ble_gap_start_ext_scan(30000, 1000); // Бесконечное сканирование
+            //esp_ble_gap_start_ext_scan(40, 60);
+            esp_ble_gap_start_ext_scan(0, 0); // Бесконечное сканирование
         }
         return true;
 
+    // ESP_GAP_BLE_EXT_SCAN_START_COMPLETE_EVT:
+    // 🔹 Triggered after calling esp_ble_gap_start_ext_scan()
+    // 🔹 Means: "Extended BLE scanning has successfully started (or failed to start)"
+    //
+    // ⚙️ Happens once the BLE controller begins active or passive scanning on the
+    //    configured PHYs (1M and/or Coded). This event confirms that the request
+    //    from esp_ble_gap_start_ext_scan() was accepted and activated.
+    //
+    // ⚠️ IMPORTANT:
+    //     └─ Check param->ext_scan_start.status == ESP_BT_STATUS_SUCCESS
+    //     └─ If success → device is now actively scanning for extended advertisements
+    //     └─ If failed  → verify BLE 5.0 support, PHY config mask, or controller state
+    //
+    // 🔹 Typical next step:
+    //     - Wait for multiple ESP_GAP_BLE_EXT_ADV_REPORT_EVT events
+    //       → each represents one extended advertising packet
+    //     - Parse advertising data, detect known devices, etc.
+    //
+    // 🔹 Common causes of failure:
+    //     - Another scan already running
+    //     - BLE controller busy or disabled
+    //     - Invalid scan configuration (e.g. both PHYs disabled)
+    //
+    // 💡 Tip:
+    //     - For long-running scans, use duration = 0 (infinite scanning).
+    //     - You can stop scanning anytime via esp_ble_gap_stop_ext_scan().
+    //     - This event marks the **transition from setup → active scan phase**.
+    //
+    // Example flow:
+    //     esp_ble_gap_set_ext_scan_params(&ext_scan_params);
+    //         ↓
+    //     → ESP_GAP_BLE_SET_EXT_SCAN_PARAMS_COMPLETE_EVT
+    //         ↓
+    //     esp_ble_gap_start_ext_scan(30000, 1000);
+    //         ↓
+    //     → ESP_GAP_BLE_EXT_SCAN_START_COMPLETE_EVT  ✅ (now scanning)
+    //         ↓
+    //     → ESP_GAP_BLE_EXT_ADV_REPORT_EVT ×N
+    //         ↓
+    //     esp_ble_gap_stop_ext_scan();
+    //         ↓
+    //     → ESP_GAP_BLE_EXT_SCAN_STOP_COMPLETE_EVT
+    //
     case ESP_GAP_BLE_EXT_SCAN_START_COMPLETE_EVT:
+
         if (param->ext_scan_start.status == ESP_BT_STATUS_SUCCESS)
         {
             ESP_LOGI(TAG_BLE_CALLBACK, "Extended scan started");
@@ -184,16 +588,75 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
         }
         return true;
 
+        // ESP_GAP_BLE_EXT_ADV_REPORT_EVT:
+        // 🔹 Triggered whenever an extended BLE advertising packet is received
+        // 🔹 Means: "A nearby BLE 5.0 device has broadcasted an extended advertisement"
+        //
+        // ⚙️ This is the **core event** of BLE 5.0 scanning — fires continuously
+        //    for every advertising report detected on 1M and/or Coded PHYs.
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ Each call contains one advertising report in:
+        //            param->ext_adv_report.params
+        //     └─ You can safely parse, filter, or process data here
+        //        (do NOT block for long — runs in BLE callback context)
+        //
+        // 🔹 param->ext_adv_report.params fields:
+        //     • addr             → advertiser address (esp_ble_addr_t)
+        //     • addr_type        → public / random / RPA
+        //     • primary_phy      → PHY where adv started (1M or Coded)
+        //     • secondary_phy    → PHY of secondary channel (if any)
+        //     • adv_data         → raw advertising payload
+        //     • adv_data_len     → length in bytes
+        //     • rssi             → signal strength in dBm
+        //     • event_type       → ADV_IND, ADV_EXT_IND, SCAN_RSP, etc.
+        //
+        // 🔹 Typical use:
+        //     - Parse the advertising payload (AD structures)
+        //     - Detect known devices by manufacturer ID, UUIDs, or local name
+        //     - Log or dispatch events to higher-level recognizers
+        //
+        // Example parsing logic:
+        //     const auto &report = param->ext_adv_report.params;
+        //     yabt::BleGapExtAdvReport adv(report);
+        //     BTController::getInstance().GapHanler(adv);
+        //
+        // 🔹 Common subfields to extract:
+        //     - Complete Local Name (AD type 0x09)
+        //     - Manufacturer Data (0xFF) → report.getManufacturerData()
+        //     - Service UUIDs (16/32/128-bit)
+        //     - Flags, Tx Power, Appearance
+        //
+        // 💡 Tips:
+        //     - This event may fire very frequently — handle efficiently.
+        //     - For better performance, move parsing into a lightweight object
+        //       (as done via yabt::BleGapExtAdvReport).
+        //     - If you detect your target → stop scan:
+        //           esp_ble_gap_stop_ext_scan();
+        //
+        // Example flow:
+        //     esp_ble_gap_start_ext_scan(...);
+        //         ↓
+        //     → ESP_GAP_BLE_EXT_SCAN_START_COMPLETE_EVT
+        //         ↓
+        //     → ESP_GAP_BLE_EXT_ADV_REPORT_EVT × N (device packets)
+        //         ↓
+        //     esp_ble_gap_stop_ext_scan();
+        //         ↓
+        //     → ESP_GAP_BLE_EXT_SCAN_STOP_COMPLETE_EVT
+        //
     case ESP_GAP_BLE_EXT_ADV_REPORT_EVT:
     {
         // esp_ble_gap_ext_adv_report_t *report = &param->ext_adv_report.params;
 
         const yabt::BleGapExtAdvReport Report(param->ext_adv_report.params);
-        yabt::BTController::getInstance().GapHanler(Report);
+        if (yabt::BTController::getInstance().GapHanler(Report))
+            return true;
+        process_ext_adv_report(Report);
+        return true;
 
-        // return true;
+        // Evry BLE SHOW---// ESP_LOGI(TAG_BLE_CALLBACK, " ~~~~ %s", Report.getAddr().toString().c_str());
 
-        ESP_LOGI(TAG_BLE_CALLBACK, " ~~~~ %s", Report.getAddr().toString().c_str());
         // ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, param->ext_adv_report.params.adv_data, param->ext_adv_report.params.adv_data_len);
 
         // ESP_LOGI(TAG_BLE_CALLBACK, " +16BitServiceUUIDs         %s", Report.get16BitServiceUUIDsAsString(false).c_str());
@@ -259,6 +722,50 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
         return true;
     }
 
+        // ESP_GAP_BLE_EXT_SCAN_STOP_COMPLETE_EVT:
+        // 🔹 Triggered after calling esp_ble_gap_stop_ext_scan()
+        // 🔹 Means: "Extended BLE scanning has been successfully stopped (or failed)"
+        //
+        // ⚙️ Happens once the controller halts extended scanning on all PHYs (1M/Coded)
+        //    and frees radio resources. This marks the end of the discovery phase.
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ Check param->scan_stop_cmpl.status == ESP_BT_STATUS_SUCCESS
+        //     └─ If success → no more ESP_GAP_BLE_EXT_ADV_REPORT_EVT will be triggered
+        //     └─ If failed  → scanning might have already stopped or BLE stack busy
+        //
+        // 🔹 Typical next step:
+        //     - Connect to the selected device via:
+        //           esp_ble_gattc_aux_open(gattc_if, remote_bda, BLE_ADDR_TYPE_RANDOM, true);
+        //       or esp_ble_gattc_open() for legacy connections.
+        //     - Or restart scanning if continuous discovery is desired.
+        //
+        // 🔹 Common causes of failure:
+        //     - Scanning was already stopped automatically (timeout)
+        //     - Controller busy or connection in progress
+        //     - Invalid state transition (stop called twice)
+        //
+        // 💡 Tip:
+        //     - Always stop scanning before opening a GATT connection.
+        //     - For long-running apps, consider restarting scanning periodically
+        //       to refresh device visibility.
+        //     - This event is your clean “handover” point from SCAN → CONNECT phase.
+        //
+        // Example flow:
+        //     esp_ble_gap_set_ext_scan_params(&ext_scan_params);
+        //         ↓
+        //     → ESP_GAP_BLE_SET_EXT_SCAN_PARAMS_COMPLETE_EVT
+        //         ↓
+        //     esp_ble_gap_start_ext_scan(30000, 1000);
+        //         ↓
+        //     → ESP_GAP_BLE_EXT_SCAN_START_COMPLETE_EVT
+        //         ↓
+        //     → ESP_GAP_BLE_EXT_ADV_REPORT_EVT × N
+        //         ↓
+        //     esp_ble_gap_stop_ext_scan();
+        //         ↓
+        //     → ESP_GAP_BLE_EXT_SCAN_STOP_COMPLETE_EVT  ✅ (safe to connect)
+        //
     case ESP_GAP_BLE_EXT_SCAN_STOP_COMPLETE_EVT:
     {
         if (param->scan_stop_cmpl.status == ESP_BT_STATUS_SUCCESS)
@@ -275,6 +782,54 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
         return true;
     }
 
+        // ESP_GAP_BLE_PERIODIC_ADV_REPORT_EVT:
+        // 🔹 Triggered when a periodic advertising packet is received from a BLE 5.0 device
+        // 🔹 Means: "A device is broadcasting synchronized periodic advertisements"
+        //
+        // ⚙️ This event occurs after your scanner has synchronized to a periodic advertiser
+        //    (typically using periodic advertising sync). The packets arrive at fixed intervals
+        //    and can contain sensor or beacon data with low power overhead.
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ The report data is stored in param->period_adv_report.params
+        //     └─ Fields include:
+        //          • sync_handle → unique ID for the periodic sync
+        //          • rssi         → signal strength in dBm
+        //          • data         → raw payload data
+        //          • data_length  → length of data
+        //     └─ You can parse this payload the same way as extended advertisements.
+        //
+        // 🔹 Typical use:
+        //     - Continuous telemetry (TPMS, heart rate belts, environment sensors)
+        //     - Beacons with fixed-interval broadcast data
+        //     - Ultra-low-power data streams (sensors that sleep between broadcasts)
+        //
+        // 🔹 Example handling:
+        //     esp_ble_gap_periodic_adv_report_t *report = &param->period_adv_report.params;
+        //     ESP_LOGI(TAG_BLE_CALLBACK,
+        //              "Periodic Adv Report - SyncHandle:%d  RSSI:%d",
+        //              report->sync_handle, report->rssi);
+        //     ESP_LOG_BUFFER_HEX(TAG_BLE_CALLBACK, report->data, report->data_length);
+        //
+        // 💡 Tips:
+        //     - Periodic advertising requires prior synchronization (SYNC_ESTAB event).
+        //     - Use esp_ble_gap_periodic_adv_sync_start() to subscribe to a known advertiser.
+        //     - Once synchronized, reports arrive automatically until stopped or lost.
+        //     - To end reception, call esp_ble_gap_periodic_adv_sync_terminate(sync_handle).
+        //
+        // Example flow:
+        //     esp_ble_gap_start_ext_scan(...);
+        //         ↓
+        //     → ESP_GAP_BLE_EXT_ADV_REPORT_EVT (detect advertiser with periodic support)
+        //         ↓
+        //     esp_ble_gap_periodic_adv_sync_start(...);
+        //         ↓
+        //     → ESP_GAP_BLE_PERIODIC_ADV_SYNC_ESTAB_EVT (sync established)
+        //         ↓
+        //     → ESP_GAP_BLE_PERIODIC_ADV_REPORT_EVT × N (periodic packets)
+        //         ↓
+        //     → ESP_GAP_BLE_PERIODIC_ADV_SYNC_LOST_EVT (sync lost or terminated)
+        //
     case ESP_GAP_BLE_PERIODIC_ADV_REPORT_EVT:
     {
         esp_ble_gap_periodic_adv_report_t *report = &param->period_adv_report.params;
@@ -285,79 +840,114 @@ static bool ble_gap_callback_ext(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
     default:
         return false;
     }
+
+    // ============================================================================
+    // 🧭 OTHER ESP_GAP_BLE EVENTS — Not Yet Handled in ble_gap_callback_ext()
+    // ----------------------------------------------------------------------------
+    // ✅ Recommended to Implement (useful or likely to appear)
+    // ----------------------------------------------------------------------------
+    // case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT:
+    //     // 🔹 Triggered when connection parameters (interval, latency, timeout) change
+    //     // 🔹 Useful to monitor and log link stability or optimize performance
+    //     // ⚙️ Example:
+    //     //     auto &p = param->update_conn_params;
+    //     //     ESP_LOGI(TAG_BLE_CALLBACK, "Conn params updated: interval=%d latency=%d timeout=%d",
+    //     //              p.int_min, p.latency, p.timeout);
+    //     break;
+    //
+    // case ESP_GAP_BLE_AUTH_CMPL_EVT:
+    //     // 🔹 Triggered when authentication (pairing/bonding) completes
+    //     // 🔹 Provides security level, device address, and auth result
+    //     // ⚙️ Use this to confirm successful pairing
+    //     // 💡 Required if you connect to secured BLE devices
+    //     break;
+    //
+    // case ESP_GAP_BLE_KEY_EVT:
+    //     // 🔹 Reports key exchange during pairing (LTK, IRK, CSRK, etc.)
+    //     // 🔹 Rare unless bonding enabled
+    //     // ⚙️ Example: store keys for future reconnection
+    //     break;
+    //
+    // case ESP_GAP_BLE_PASSKEY_REQ_EVT:
+    // case ESP_GAP_BLE_PASSKEY_NOTIF_EVT:
+    //     // 🔹 Used for PIN-based pairing (display or input passkey)
+    //     // ⚙️ Needed only if you enable numeric comparison / passkey authentication
+    //     break;
+    //
+    // case ESP_GAP_BLE_REMOVE_BOND_DEV_COMPLETE_EVT:
+    //     // 🔹 Confirms bonded device removal
+    //     // ⚙️ Helpful if you manage bonding lists dynamically
+    //     break;
+    //
+    // case ESP_GAP_BLE_SET_LOCAL_PRIVACY_COMPLETE_EVT:
+    //     // 🔹 Triggered after enabling privacy (RPA addresses)
+    //     // ⚙️ Use when working with random/private address rotation
+    //     break;
+    //
+    // ----------------------------------------------------------------------------
+    // ⚙️ Optional / Rarely Needed (mostly for peripheral or advertising mode)
+    // ----------------------------------------------------------------------------
+    // case ESP_GAP_BLE_ADV_DATA_SET_COMPLETE_EVT:
+    //     // 🔹 Advertising data configured for this ESP32 (peripheral/beacon mode)
+    //     break;
+    //
+    // case ESP_GAP_BLE_SCAN_RSP_DATA_SET_COMPLETE_EVT:
+    //     // 🔹 Scan-response payload configured (peripheral mode)
+    //     break;
+    //
+    // case ESP_GAP_BLE_ADV_START_COMPLETE_EVT:
+    //     // 🔹 Advertising started successfully
+    //     break;
+    //
+    // case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT:
+    //     // 🔹 Advertising stopped
+    //     break;
+    //
+    // case ESP_GAP_BLE_SET_STATIC_RAND_ADDR_EVT:
+    //     // 🔹 Random static address successfully assigned
+    //     break;
+    //
+    // case ESP_GAP_BLE_SET_EXT_ADV_PARAMS_COMPLETE_EVT:
+    //     // 🔹 Extended advertising parameters configured (BLE 5.0 peripheral mode)
+    //     break;
+    //
+    // case ESP_GAP_BLE_EXT_ADV_START_COMPLETE_EVT:
+    // case ESP_GAP_BLE_EXT_ADV_STOP_COMPLETE_EVT:
+    //     // 🔹 Extended advertising started/stopped (BLE 5.0 peripheral mode)
+    //     break;
+    //
+    // case ESP_GAP_BLE_PERIODIC_ADV_SYNC_ESTAB_EVT:
+    // case ESP_GAP_BLE_PERIODIC_ADV_SYNC_LOST_EVT:
+    //     // 🔹 Periodic advertising sync established or lost (BLE 5.0 feature)
+    //     // ⚙️ Appears when syncing to periodic advertisers
+    //     break;
+    //
+    // ----------------------------------------------------------------------------
+    // 💡 Tip:
+    // These events are safe to ignore unless your ESP32 acts as a *peripheral*
+    // or requires *bonding / secure pairing*. For scanning and recognition use-cases,
+    // your existing handled events (SET_EXT_SCAN_PARAMS → EXT_SCAN_START → EXT_ADV_REPORT → EXT_SCAN_STOP)
+    // already cover the full BLE 5.0 discovery cycle.
+    //
+    // ============================================================================
 }
 
-static void connectHR()
-{ // scanning = false;
-    //  Попытка подключения после остановки сканирования
-    if (gattc_if != ESP_GATT_IF_NONE)
-    {
-        ESP_LOGI(TAG_BLE_CALLBACK, "Ex Connecting to target device...");
-
-        // auto ret = esp_ble_gattc_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
-        static esp_ble_conn_params_t p1{
-            .scan_interval = 0x80,         /*!< Initial scan interval, in units of 0.625ms, the range is 0x0004(2.5ms) to 0xFFFF(10.24s). */
-            .scan_window = 0x30,           /*!< Initial scan window, in units of 0.625ms, the range is 0x0004(2.5ms) to 0xFFFF(10.24s). */
-            .interval_min = 0x10,          /*!< Minimum connection interval, in units of 1.25ms, the range is 0x0006(7.5ms) to 0x0C80(4s). */
-            .interval_max = 0x500,         /*!< Maximum connection interval, in units of 1.25ms, the range is 0x0006(7.5ms) to 0x0C80(4s). */
-            .latency = 0,                  /*!< Connection latency, the range is 0x0000(0) to 0x01F3(499). */
-            .supervision_timeout = 0x0280, /*!< Connection supervision timeout, in units of 10ms, the range is from 0x000A(100ms) to 0x0C80(32s). */
-            .min_ce_len = 0,               /*!< Minimum connection event length, in units of 0.625ms, setting to 0 for no preferred parameters. */
-            .max_ce_len = 0,               /*!< Maximum connection event length, in units of 0.625ms, setting to 0 for no preferred parameters. */
-        };
-        // Параметры подключения
-        static esp_ble_gatt_creat_conn_params_t conn_params = {
-            .remote_bda = {0},
-            .remote_addr_type = BLE_ADDR_TYPE_RANDOM, // BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_RANDOM
-            .is_direct = true,                        /*!< Direct connection or background auto connection(by now, background auto connection is not supported */
-            .is_aux = false,                          /*!< Set to true for BLE 5.0 or higher to enable auxiliary connections; set to false for BLE 4.2 or lower. */
-            .own_addr_type = BLE_ADDR_TYPE_PUBLIC,    /*!< Specifies the address type used in the connection request. Set to 0xFF if the address type is unknown. (esp_ble_addr_type_t)0xFF*/
-            .phy_mask = ESP_BLE_PHY_1M_PREF_MASK,     /*!< Indicates which PHY connection parameters will be used. When is_aux is false, only the connection params for 1M PHY can be specified */
-            .phy_1m_conn_params = &p1,                /*!< Connection parameters for the LE 1M PHY */
-            .phy_2m_conn_params = &p1,                /*!< Connection parameters for the LE 2M PHY */
-            .phy_coded_conn_params = &p1              /*!< Connection parameters for the LE Coded PHY */
-        };
-        memcpy(conn_params.remote_bda, target_addr, ESP_BD_ADDR_LEN);
-
-        esp_err_t ret;
-        // Подключение с помощью esp_ble_gattc_enh_open
-        // esp_err_t ret = esp_ble_gattc_enh_open(gattc_if, &conn_params);
-
-        ret = esp_ble_gattc_aux_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
-        if (ret == ESP_OK)
-        {
-            ESP_LOGI(TAG_BLE_CALLBACK, "Enhanced connection request sent: %s", esp_err_to_name(ret));
-        }
-        else
-        {
-            ESP_LOGE(TAG_BLE_CALLBACK, "Failed to send connection request: %s", esp_err_to_name(ret));
-        }
-    }
-}
+#pragma endregion ble_gap_callback_ext
 
 static void ble_gap_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
-    if (ble_gap_callback_legacy(event, param))
-        return;
-
     if (ble_gap_callback_ext(event, param))
         return;
 
-    switch (event)
-    {
+    if (ble_gap_callback_legacy(event, param))
+        return;
 
-    case ESP_GAP_BLE_EXT_ADV_DATA_SET_COMPLETE_EVT:
-        ESP_LOGI(TAG_BLE_CALLBACK, "ESP_GAP_BLE_EXT_ADV_DATA_SET_COMPLETE_EVT ????????????????????");
-        break;
-
-    default:
-        ESP_LOGI(TAG_BLE_CALLBACK, "Event in default -------------- %i", (int)event);
-
-        break;
-    }
+    ESP_LOGW(TAG_BLE_CALLBACK, "Unhandled GAP event: %d", (int)event);
 }
 
-#pragma region GATCC
+#pragma endregion GAP
+
+#pragma region -GATCC
 
 struct GATTServiceInfo
 {
@@ -441,6 +1031,8 @@ void print_found_services()
     }
     ESP_LOGI(TAG_BLE_GATTC, LOG_GATTC_COLOR "%s" LOG_ANSI_COLOR_RESET, result.c_str());
 }
+
+#pragma region esp_gattc_callback
 
 // ============================================================================
 // 🧭 GATTC EVENT FLOW — Full Connection Lifecycle
@@ -905,38 +1497,38 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
         break;
     }
 
-    // ESP_GATTC_NOTIFY_EVT:
-// 🔹 Triggered when the server sends a value update (notification or indication)
-// 🔹 Means: "The characteristic value was pushed from the server to the client"
-//
-// ⚠️ IMPORTANT:
-//     └─ param->notify.is_notify == true  → Notification (no ack required)
-//     └─ param->notify.is_notify == false → Indication (ack handled by stack)
-//     └─ Use param->notify.handle to know WHICH characteristic sent the data
-//     └─ The bytes are in param->notify.value (length = param->notify.value_len)
-//
-// 🔹 Typical use:
-//     - Continuous sensor updates (heart rate, TPMS, etc.)
-//     - Real-time streams without polling (more efficient than read)
-//
-// 💡 To receive this event you MUST:
-//     1) Register for notifications:
-//          esp_ble_gattc_register_for_notify(gattc_if, remote_bda, char_handle);
-//     2) Enable the CCCD (0x2902) descriptor of that characteristic:
-//          write 0x0001 → notifications ON
-//          write 0x0002 → indications  ON
-//          (0x0003 → both; 0x0000 → off)
-//
-// Example flow:
-//     discover services/characteristics → get char_handle & cccd_handle
-//         ↓
-//     esp_ble_gattc_register_for_notify(gattc_if, remote_bda, char_handle);
-//         ↓
-//     esp_ble_gattc_write_char_descr(gattc_if, conn_id, cccd_handle,
-//                                    sizeof(uint16_t), (uint8_t*)"\x01\x00",
-//                                    ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
-//         ↓
-//     → ESP_GATTC_NOTIFY_EVT (called whenever the server pushes an update)
+        // ESP_GATTC_NOTIFY_EVT:
+        // 🔹 Triggered when the server sends a value update (notification or indication)
+        // 🔹 Means: "The characteristic value was pushed from the server to the client"
+        //
+        // ⚠️ IMPORTANT:
+        //     └─ param->notify.is_notify == true  → Notification (no ack required)
+        //     └─ param->notify.is_notify == false → Indication (ack handled by stack)
+        //     └─ Use param->notify.handle to know WHICH characteristic sent the data
+        //     └─ The bytes are in param->notify.value (length = param->notify.value_len)
+        //
+        // 🔹 Typical use:
+        //     - Continuous sensor updates (heart rate, TPMS, etc.)
+        //     - Real-time streams without polling (more efficient than read)
+        //
+        // 💡 To receive this event you MUST:
+        //     1) Register for notifications:
+        //          esp_ble_gattc_register_for_notify(gattc_if, remote_bda, char_handle);
+        //     2) Enable the CCCD (0x2902) descriptor of that characteristic:
+        //          write 0x0001 → notifications ON
+        //          write 0x0002 → indications  ON
+        //          (0x0003 → both; 0x0000 → off)
+        //
+        // Example flow:
+        //     discover services/characteristics → get char_handle & cccd_handle
+        //         ↓
+        //     esp_ble_gattc_register_for_notify(gattc_if, remote_bda, char_handle);
+        //         ↓
+        //     esp_ble_gattc_write_char_descr(gattc_if, conn_id, cccd_handle,
+        //                                    sizeof(uint16_t), (uint8_t*)"\x01\x00",
+        //                                    ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
+        //         ↓
+        //     → ESP_GATTC_NOTIFY_EVT (called whenever the server pushes an update)
     case ESP_GATTC_NOTIFY_EVT: /*!< When the ble discover service complete, the event comes */
     {
         if (param->search_cmpl.status == ESP_GATT_OK)
@@ -956,7 +1548,9 @@ static void esp_gattc_callback(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_i
     }
 }
 
-#pragma endregion
+#pragma endregion esp_gattc_callback
+
+#pragma endregion GATCC
 
 void ble_init(void)
 {
@@ -993,7 +1587,56 @@ void ble_init(void)
     if (ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ble_gap_set_ext_scan_params(&ext_scan_params)))
         return;
 
-    //    connectHR();
-
     ESP_LOGI(TAG_BLE, "BLE initialized.");
 }
+
+#pragma region TEST HR
+
+static void connectHR()
+{ // scanning = false;
+    //  Попытка подключения после остановки сканирования
+    if (gattc_if != ESP_GATT_IF_NONE)
+    {
+        ESP_LOGI(TAG_BLE_CALLBACK, "Ex Connecting to target device...");
+
+        // auto ret = esp_ble_gattc_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
+        static esp_ble_conn_params_t p1{
+            .scan_interval = 0x80,         /*!< Initial scan interval, in units of 0.625ms, the range is 0x0004(2.5ms) to 0xFFFF(10.24s). */
+            .scan_window = 0x30,           /*!< Initial scan window, in units of 0.625ms, the range is 0x0004(2.5ms) to 0xFFFF(10.24s). */
+            .interval_min = 0x10,          /*!< Minimum connection interval, in units of 1.25ms, the range is 0x0006(7.5ms) to 0x0C80(4s). */
+            .interval_max = 0x500,         /*!< Maximum connection interval, in units of 1.25ms, the range is 0x0006(7.5ms) to 0x0C80(4s). */
+            .latency = 0,                  /*!< Connection latency, the range is 0x0000(0) to 0x01F3(499). */
+            .supervision_timeout = 0x0280, /*!< Connection supervision timeout, in units of 10ms, the range is from 0x000A(100ms) to 0x0C80(32s). */
+            .min_ce_len = 0,               /*!< Minimum connection event length, in units of 0.625ms, setting to 0 for no preferred parameters. */
+            .max_ce_len = 0,               /*!< Maximum connection event length, in units of 0.625ms, setting to 0 for no preferred parameters. */
+        };
+        // Параметры подключения
+        static esp_ble_gatt_creat_conn_params_t conn_params = {
+            .remote_bda = {0},
+            .remote_addr_type = BLE_ADDR_TYPE_RANDOM, // BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_RANDOM
+            .is_direct = true,                        /*!< Direct connection or background auto connection(by now, background auto connection is not supported */
+            .is_aux = false,                          /*!< Set to true for BLE 5.0 or higher to enable auxiliary connections; set to false for BLE 4.2 or lower. */
+            .own_addr_type = BLE_ADDR_TYPE_PUBLIC,    /*!< Specifies the address type used in the connection request. Set to 0xFF if the address type is unknown. (esp_ble_addr_type_t)0xFF*/
+            .phy_mask = ESP_BLE_PHY_1M_PREF_MASK,     /*!< Indicates which PHY connection parameters will be used. When is_aux is false, only the connection params for 1M PHY can be specified */
+            .phy_1m_conn_params = &p1,                /*!< Connection parameters for the LE 1M PHY */
+            .phy_2m_conn_params = &p1,                /*!< Connection parameters for the LE 2M PHY */
+            .phy_coded_conn_params = &p1              /*!< Connection parameters for the LE Coded PHY */
+        };
+        memcpy(conn_params.remote_bda, target_addr, ESP_BD_ADDR_LEN);
+
+        esp_err_t ret;
+        // Подключение с помощью esp_ble_gattc_enh_open
+        // esp_err_t ret = esp_ble_gattc_enh_open(gattc_if, &conn_params);
+
+        ret = esp_ble_gattc_aux_open(gattc_if, target_addr, BLE_ADDR_TYPE_RANDOM, true);
+        if (ret == ESP_OK)
+        {
+            ESP_LOGI(TAG_BLE_CALLBACK, "Enhanced connection request sent: %s", esp_err_to_name(ret));
+        }
+        else
+        {
+            ESP_LOGE(TAG_BLE_CALLBACK, "Failed to send connection request: %s", esp_err_to_name(ret));
+        }
+    }
+}
+#pragma endregion

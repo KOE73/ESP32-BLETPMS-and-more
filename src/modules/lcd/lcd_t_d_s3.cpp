@@ -19,6 +19,7 @@
 #include "UI/ui.h"
 
 #include "TPMS/lvgl_tpms.hpp"
+#include "Network/lvgl_network.hpp"
 
 #define LCD_H_RES 320   // Горизонтальное разрешение
 #define LCD_V_RES 170   // Вертикальное разрешение
@@ -214,6 +215,7 @@ void lv_task(void *pvParameter)
 }
 
 lcd::LVGLHandler *Whell1;
+lcd::LVGLHandler_Network *Network;
 
 lv_obj_t *ui_Screen2;
 void ui_Screen2_screen_init(void)
@@ -344,6 +346,7 @@ void lcd_main(void)
     ESP_LOGI("LCD----------", "222");
 
     Whell1 = new lcd::LVGLHandler(ui_Screen2);
+    Network = new lcd::LVGLHandler_Network(ui_Screen2);
 
     ESP_LOGI("LCD----------", "333");
 

@@ -9,6 +9,7 @@
 #include "esp_event.h"
 
 #include "lvgl.h"
+#include "..\LCDCommon.hpp"
 
 #include "yabt.hpp"
 #include "yabt_tpms.hpp"
@@ -47,14 +48,6 @@ namespace lcd
         /// @brief Called when new data differs from the last stored event.
         /// @param data The new data triggering the update.
         virtual void onDataChanged(const T &data) = 0;
-    };
-
-    /// @brief Structure representing LVGL-compatible style settings.
-    struct LVGLStyle
-    {
-        lv_color_t textColor; ///< Text color of the label.
-        lv_color_t bgColor;   ///< Background color of the container.
-        lv_align_t alignment; ///< Alignment of the UI elements.
     };
 
     /// @brief Data structure that holds style-related information for LVGL updates.

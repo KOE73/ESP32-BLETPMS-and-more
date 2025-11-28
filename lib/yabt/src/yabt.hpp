@@ -89,6 +89,8 @@ namespace yabt
 
     class BtDeviceRecognizerBase;
 
+    #pragma region BTController
+
     /// @brief  Central class for processing and managing BT information.
     ///         GAP and GATT client.
     class BTController
@@ -130,6 +132,10 @@ namespace yabt
         ///             yabt::BTController::getInstance().GapHanler(Report);
         bool GapHanler(BleGapExtAdvReport report);
     };
+
+    #pragma endregion BTController
+
+    #pragma region BtDeviceRecognizerBase
 
     /// @brief  Base class for device recognition.
     ///         Derived classes process GAP reports via CanHandle.
@@ -181,6 +187,9 @@ namespace yabt
         BtDeviceRecognizerBase(SkipRegister) {}
     };
 
+    #pragma endregion BtDeviceRecognizerBase
+
+    
     // class GapHandlerBase
     //{
     // private:

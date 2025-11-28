@@ -63,10 +63,14 @@ extern const int css_css_length;
 #include "handler_api.h"
 #include "inner_events.h"
 
+__attribute__((weak)) esp_event_loop_handle_t CBOR_loop = NULL;
+__attribute__((weak)) esp_event_base_t CBOR_EVENT = NULL;
+
 using namespace yaidfws;
 
 // IDFWebServer aServer(80);
 WebServerContainer aServer(80);
+// HandlerStaticUriText index_main(aServer, "/", index_html_start);
 HandlerStaticUriText index_h(aServer, "/index", index_html_start);
 HandlerStaticUriBin index2_h(aServer, "/index2", index_html_gz_start, index_html_gz_length, true);
 HandlerStaticUriBin ble_h(aServer, "/ble", ble_html_gz_start, ble_html_gz_length, true);
@@ -100,15 +104,14 @@ void event_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id,
     ESP_LOGI("EV_XxX", "%s : %li", event_base, event_id);
 }
 
-
 /// @brief  Converts BLE events to JSON and sends them to the web.
 void yabt_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     if (event_id == YABT_EVENT_TPMS)
     {
         ESP_LOGI("EV_XxX", "Receive YABT_EVENT_TPMS");
-        if(!ws_h.count())
-        return;
+        if (!ws_h.count())
+            return;
 
         yabt::TPMSData &data = *((yabt::TPMSData *)event_data);
         JsonDocument json;
@@ -116,7 +119,7 @@ void yabt_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id, 
         json["msgType"] = "tpms";
         json["msgSource"] = "ble";
         json["id"] = data.id;
-        json["manufacturerName"] = data.manufacturerName;
+        // ASCII UTF ???? manufacturerName json["manufacturerName"] = data.manufacturerName;
         json["sensorNumber"] = data.sensorNumber;
         json["sensorAddress"] = data.sensorAddress;
         json["pressureRaw"] = data.pressureRaw;
@@ -137,8 +140,24 @@ void yabt_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id, 
 
         ws_h.send(json_str.c_str());
 
+
+        
+
         return;
     }
+}
+
+/// @brief  Converts BLE events to JSON and sends them to the web.
+void cbor_handler_any(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+    ESP_LOGI("EV_XxX", "Web Receive CBOR");
+
+    size_t len = (size_t)event_id;
+    uint8_t *buf = (uint8_t *)event_data;
+    ESP_LOGI("EV_XxX", "Web CBOR data size: %u bytes", len);
+
+    ws_h.send_binary(buf, len);
+    // ws_h.send(buf, len);
 }
 
 // Could it be done through events, without direct calls?
@@ -166,6 +185,14 @@ esp_err_t start_web_server(void)
     esp_event_handler_register(ESP_EVENT_ANY_BASE, ESP_EVENT_ANY_ID, event_handler_any, NULL);
     esp_event_handler_register_with(yabt::BTController::getInstance().getEventLoop(), YABT_EVENT, ESP_EVENT_ANY_ID, yabt_handler_any, NULL);
 
+    ESP_LOGI(TAG_WEB, "esp_event_handler_register_with before test . ");
+
+    if (CBOR_loop != NULL)
+    {
+        ESP_LOGI(TAG_WEB, "esp_event_handler_register_with . %s", CBOR_EVENT);
+        esp_event_handler_register_with(CBOR_loop, CBOR_EVENT, ESP_EVENT_ANY_ID, cbor_handler_any, NULL);
+    }
+
     xTaskCreate(
         [](void *param)
         {
@@ -178,8 +205,9 @@ esp_err_t start_web_server(void)
 
             while (true)
             {
-                std::string ss = "step: ";
+                std::string ss = "{\"step\":";
                 ss.append(std::to_string(c));
+                ss.append("}");
 
                 // ESP_LOGI(TAG_WEB, "Task EVENT is running... [%s]", ss.c_str());
 

@@ -13,6 +13,8 @@
 #include "modules/store/store.hpp"
 #include "modules/diagnostic/diagnostic.hpp"
 
+extern void lcd_main(void);
+
 // pio run -t menuconfig
 
 // Теги для логирования
@@ -43,12 +45,29 @@ void list_nvs_entries()
     }
 }
 
+esp_event_loop_handle_t CBOR_loop = NULL;
+esp_event_base_t CBOR_EVENT = "CBOR_EVENT";
+
 // ====== MAIN ======
 void init_main(void)
 {
+    esp_event_loop_args_t loop_args = {
+        .queue_size = 20,              // Размер очереди событий
+        .task_name = "cbor_loop",      // Имя задачи
+        .task_priority = 5,            // Приоритет задачи
+        .task_stack_size = 6000,       // Размер стека
+        .task_core_id = tskNO_AFFINITY // Ядро процессора (0 или 1)
+    };
+    
+    // CBOR event loop
+    ESP_ERROR_CHECK(esp_event_loop_create(&loop_args, &CBOR_loop));
+    ESP_LOGI(TAG_MAIN, "CBOR_loop Initialized.");
+
     ESP_LOGI(TAG_MAIN, "Initializing ESP32...");
     init_diagnostics();
     print_task_diagnostics();
+
+        lcd_main();
 
     // Инициализация файловой системы
     fs_init();
@@ -63,4 +82,5 @@ void init_main(void)
     start_web_server();
 
     list_nvs_entries();
+
 }

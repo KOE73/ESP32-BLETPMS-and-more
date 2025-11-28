@@ -55,7 +55,7 @@ float getRandomValue(float min = 0.1f, float max = 9.0f)
     return dist(gen);
 }
 
-extern void lcd_main(void);
+
 
 extern "C" void app_main()
 {
@@ -69,7 +69,7 @@ extern "C" void app_main()
         ESP_LOGI(TAG_MAIN, "%d", i);
     }
 
-    lcd_main();
+
 
     print_partition_table();
 

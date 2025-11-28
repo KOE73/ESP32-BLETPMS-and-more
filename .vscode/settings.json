@@ -84,11 +84,12 @@
         "any": "cpp",
         "codecvt": "cpp",
         "forward_list": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "shared_mutex": "cpp"
     },
     "editor.minimap.scale": 2,
     "editor.minimap.showSlider": "always",
-    "editor.minimap.size": "fill",
+    "editor.minimap.size": "proportional",
     "workbench.activityBar.iconClickBehavior": "toggle",
     "workbench.activityBar.location": "default",
     "workbench.activityBar.orientation": "vertical",

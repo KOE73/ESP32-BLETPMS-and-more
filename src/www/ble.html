@@ -4,6 +4,9 @@
 
 <head>
     <link rel='stylesheet' href='css.css' type='text/css'>
+
+    <!--<script src="https://cdn.jsdelivr.net/npm/cbor-web/dist/cbor.js"></script>-->
+    <script src="https://cdn.jsdelivr.net/npm/cbor-x@1.6.0/dist/index.min.js"></script>
 </head>
 
 <body>
@@ -42,9 +45,41 @@
 
         // Подключение к WebSocket-серверу
         const socket1 = new WebSocket('ws://' + host + '/ws'); // Укажите IP вашего WebSocket-сервера
+        socket1.binaryType = "arraybuffer";
 
         socket1.onopen = function () { outMessage('Соединение с сервером установлено', ''); };
-        socket1.onmessage = function (event) { outMessage('Получено сообщение', event.data); outMessage2(event); };
+        //socket1.onmessage = function (event) { outMessage('Получено сообщение', event.data); outMessage2(event); };
+        socket1.onmessage = function (event) {
+            let obj;
+
+            if (event.data instanceof ArrayBuffer) {
+                // ===== CBOR =====
+                try {
+                    const u8 = new Uint8Array(event.data);
+                    obj = CBOR.decode(u8);
+                    console.log("CBOR:", obj);
+                } catch (e) {
+                    console.error("CBOR decode error:", e);
+                    return;
+                }
+            }
+            else if (typeof event.data === "string") {
+                // ===== JSON =====
+                try {
+                    obj = JSON.parse(event.data);
+                    console.log("JSON:", obj);
+                } catch (e) {
+                    console.error("JSON parse error:", event.data, e);
+                    return;
+                }
+            }
+            else {
+                console.warn("WS: неизвестный тип данных", event.data);
+                return;
+            }
+
+            handleMessage(obj);
+        };
         socket1.onerror = function (error) { outMessage('Ошибка WebSocket', error); };
         socket1.onclose = function (event) { outMessage('Соединение закрыто', ''); };
 
@@ -77,6 +112,25 @@
         }
 
         function outMessage(msg, data) { console.log(msg + ':', data); }
+
+        function handleMessage(data) {
+            switch (data.msgType) {
+                case 'webTick':
+                    document.getElementById('webTick_id').innerText = data.id;
+                    break;
+
+                case 'mainTick':
+                    document.getElementById('mainTick_id').innerText = data.id;
+                    break;
+
+                case 'diagnostic':
+                    document.getElementById('diagnostic-task-grid').innerHTML = diagnostic(data);
+                    break;
+
+                default:
+                    console.warn("Unknown msgType:", data);
+            }
+        }
 
         function outMessage2(event) {
             const data = JSON.parse(event.data);
@@ -137,7 +191,7 @@
 
             html += '</div>';
             return html;
-             
+
 
         }
 
